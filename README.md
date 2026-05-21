@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # axiom
 
 A new Flutter project.
@@ -15,3 +16,7 @@ A few resources to get you started if this is your first Flutter project:
 For help getting started with Flutter development, view the
 [online documentation](https://docs.flutter.dev/), which offers tutorials,
 samples, guidance on mobile development, and a full API reference.
+=======
+# Axiom
+Axiom is high-tech chating app created by Cage
+>>>>>>> 68e39f0dc5f4d052d3f54909fbeec65b1ed4621b
