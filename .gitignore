@@ -1,0 +1,47 @@
+# Flutter/Dart
+.dart_tool/
+.pub/
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+pubspec.lock
+
+# Android
+android/local.properties
+android/app/debug.keystore
+android/app/.cxx/
+android/app/build/
+android/.gradle/
+
+# iOS
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/Flutter.podspec
+ios/Flutter/Generated.xcconfig
+ios/Flutter/app.flx
+ios/Flutter/app.zip
+ios/Flutter/flutter_assets/
+ios/ServiceDefinitions.json
+ios/Runner/GeneratedPluginRegistrant.*
+
+# macOS
+macos/Flutter/GeneratedPluginRegistrant.swift
+
+# Web
+build/web/
+
+# IDE
+.vscode/
+.idea/
+*.iml
+.DS_Store
+
+# Keys & secrets (IMPORTANT!)
+*.env
+*.pem
+*.key
+
+# Uploads & cache
+assets/uploads/
+*.log
