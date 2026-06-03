@@ -53,7 +53,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Profile created!'),
-              backgroundColor: AxiomColors.accent,
+              backgroundColor: AppColors.accent,
             ),
           );
         }
@@ -73,7 +73,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
     final isDark = themeProvider.isDarkMode;
     
     return Scaffold(
-      backgroundColor: isDark ? AxiomColors.darkBackground : AxiomColors.lightBackground,
+      backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
       appBar: AppBar(
         title: const Text('Complete Profile'),
         backgroundColor: Colors.transparent,
@@ -81,7 +81,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
         leading: IconButton(
           icon: Icon(
             Icons.arrow_back,
-            color: isDark ? AxiomColors.darkText : AxiomColors.lightText,
+            color: isDark ? AppColors.darkText : AppColors.lightText,
           ),
           onPressed: () {},
         ),
@@ -89,7 +89,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
           IconButton(
             icon: Icon(
               isDark ? Icons.light_mode : Icons.dark_mode,
-              color: isDark ? AxiomColors.darkText : AxiomColors.lightText,
+              color: isDark ? AppColors.darkText : AppColors.lightText,
             ),
             onPressed: () {
               themeProvider.toggleTheme();
@@ -108,13 +108,13 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                   width: 100,
                   height: 100,
                   decoration: BoxDecoration(
-                    color: AxiomColors.accent.withOpacity(0.1),
+                    color: AppColors.accent.withOpacity(0.1),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
                     Icons.person,
                     size: 50,
-                    color: AxiomColors.accent,
+                    color: AppColors.accent,
                   ),
                 ),
               ),
@@ -123,7 +123,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                 child: Text(
                   'Add photo',
                   style: TextStyle(
-                    color: AxiomColors.accent,
+                    color: AppColors.accent,
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
                   ),
@@ -135,23 +135,23 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
               TextField(
                 controller: _usernameController,
                 style: TextStyle(
-                  color: isDark ? AxiomColors.darkText : AxiomColors.lightText,
+                  color: isDark ? AppColors.darkText : AppColors.lightText,
                 ),
                 decoration: InputDecoration(
                   labelText: 'Username',
                   hintText: '@username',
                   labelStyle: TextStyle(
-                    color: isDark ? AxiomColors.darkTextSecondary : AxiomColors.lightTextSecondary,
+                    color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
                   ),
                   hintStyle: TextStyle(
-                    color: isDark ? AxiomColors.darkTextSecondary : AxiomColors.lightTextSecondary,
+                    color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
                   ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
                     borderSide: BorderSide.none,
                   ),
                   filled: true,
-                  fillColor: isDark ? AxiomColors.darkSurface : AxiomColors.lightSurface,
+                  fillColor: isDark ? AppColors.darkSurface : AppColors.lightSurface,
                 ),
               ),
               const SizedBox(height: 16),
@@ -160,23 +160,23 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
               TextField(
                 controller: _fullNameController,
                 style: TextStyle(
-                  color: isDark ? AxiomColors.darkText : AxiomColors.lightText,
+                  color: isDark ? AppColors.darkText : AppColors.lightText,
                 ),
                 decoration: InputDecoration(
                   labelText: 'Full Name',
                   hintText: 'Mutesi Grace',
                   labelStyle: TextStyle(
-                    color: isDark ? AxiomColors.darkTextSecondary : AxiomColors.lightTextSecondary,
+                    color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
                   ),
                   hintStyle: TextStyle(
-                    color: isDark ? AxiomColors.darkTextSecondary : AxiomColors.lightTextSecondary,
+                    color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
                   ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
                     borderSide: BorderSide.none,
                   ),
                   filled: true,
-                  fillColor: isDark ? AxiomColors.darkSurface : AxiomColors.lightSurface,
+                  fillColor: isDark ? AppColors.darkSurface : AppColors.lightSurface,
                 ),
               ),
               const SizedBox(height: 16),
@@ -185,23 +185,23 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
               TextField(
                 controller: _bioController,
                 style: TextStyle(
-                  color: isDark ? AxiomColors.darkText : AxiomColors.lightText,
+                  color: isDark ? AppColors.darkText : AppColors.lightText,
                 ),
                 decoration: InputDecoration(
                   labelText: 'Bio (optional)',
                   hintText: 'Tell something about yourself...',
                   labelStyle: TextStyle(
-                    color: isDark ? AxiomColors.darkTextSecondary : AxiomColors.lightTextSecondary,
+                    color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
                   ),
                   hintStyle: TextStyle(
-                    color: isDark ? AxiomColors.darkTextSecondary : AxiomColors.lightTextSecondary,
+                    color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
                   ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
                     borderSide: BorderSide.none,
                   ),
                   filled: true,
-                  fillColor: isDark ? AxiomColors.darkSurface : AxiomColors.lightSurface,
+                  fillColor: isDark ? AppColors.darkSurface : AppColors.lightSurface,
                 ),
                 maxLines: 3,
               ),
@@ -212,7 +212,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                   child: Text(
                     _errorMessage,
                     style: TextStyle(
-                      color: AxiomColors.error,
+                      color: AppColors.error,
                       fontSize: 13,
                     ),
                   ),
@@ -226,7 +226,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                 child: ElevatedButton(
                   onPressed: _isLoading ? null : _saveProfile,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AxiomColors.accent,
+                    backgroundColor: AppColors.accent,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(

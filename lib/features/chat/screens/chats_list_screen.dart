@@ -167,7 +167,7 @@ class _ChatsListScreenState extends State<ChatsListScreen> {
     final isDark = themeProvider.isDarkMode;
     
     return Scaffold(
-      backgroundColor: isDark ? AxiomColors.darkBackground : AxiomColors.lightBackground,
+      backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _chats.isEmpty
@@ -178,14 +178,14 @@ class _ChatsListScreenState extends State<ChatsListScreen> {
                       Icon(
                         Icons.chat_bubble_outline,
                         size: 64,
-                        color: isDark ? AxiomColors.darkTextSecondary : AxiomColors.lightTextSecondary,
+                        color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
                       ),
                       const SizedBox(height: 16),
                       Text(
                         'No chats yet',
                         style: TextStyle(
                           fontSize: 16,
-                          color: isDark ? AxiomColors.darkTextSecondary : AxiomColors.lightTextSecondary,
+                          color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -193,7 +193,7 @@ class _ChatsListScreenState extends State<ChatsListScreen> {
                         'Go to Contacts tab to start a chat',
                         style: TextStyle(
                           fontSize: 13,
-                          color: isDark ? AxiomColors.darkTextSecondary : AxiomColors.lightTextSecondary,
+                          color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
                         ),
                       ),
                     ],
@@ -234,11 +234,11 @@ class _ChatsListScreenState extends State<ChatsListScreen> {
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
             color: hasUnread 
-                ? (isDark ? AxiomColors.darkSurface.withOpacity(0.8) : AxiomColors.lightSurface)
-                : (isDark ? AxiomColors.darkSurface : AxiomColors.lightSurface),
+                ? (isDark ? AppColors.darkSurface.withOpacity(0.8) : AppColors.lightSurface)
+                : (isDark ? AppColors.darkSurface : AppColors.lightSurface),
             borderRadius: BorderRadius.circular(16),
             border: hasUnread
-                ? Border.all(color: AxiomColors.accent, width: 1.5)
+                ? Border.all(color: AppColors.accent, width: 1.5)
                 : null,
           ),
           child: Row(
@@ -251,7 +251,7 @@ class _ChatsListScreenState extends State<ChatsListScreen> {
                     height: 56,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: AxiomColors.accent.withOpacity(0.1),
+                      color: AppColors.accent.withOpacity(0.1),
                     ),
                     child: Center(
                       child: Text(
@@ -259,7 +259,7 @@ class _ChatsListScreenState extends State<ChatsListScreen> {
                         style: TextStyle(
                           fontSize: 22,
                           fontWeight: hasUnread ? FontWeight.w700 : FontWeight.w600,
-                          color: AxiomColors.accent,
+                          color: AppColors.accent,
                         ),
                       ),
                     ),
@@ -273,9 +273,9 @@ class _ChatsListScreenState extends State<ChatsListScreen> {
                         height: 14,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: AxiomColors.accent,
+                          color: AppColors.accent,
                           border: Border.all(
-                            color: isDark ? AxiomColors.darkSurface : Colors.white,
+                            color: isDark ? AppColors.darkSurface : Colors.white,
                             width: 2,
                           ),
                         ),
@@ -298,7 +298,7 @@ class _ChatsListScreenState extends State<ChatsListScreen> {
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: hasUnread ? FontWeight.w700 : FontWeight.w600,
-                              color: isDark ? AxiomColors.darkText : AxiomColors.lightText,
+                              color: isDark ? AppColors.darkText : AppColors.lightText,
                             ),
                           ),
                         ),
@@ -307,8 +307,8 @@ class _ChatsListScreenState extends State<ChatsListScreen> {
                           style: TextStyle(
                             fontSize: 11,
                             color: hasUnread 
-                                ? AxiomColors.accent 
-                                : (isDark ? AxiomColors.darkTextSecondary : AxiomColors.lightTextSecondary),
+                                ? AppColors.accent 
+                                : (isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
                           ),
                         ),
                       ],
@@ -323,8 +323,8 @@ class _ChatsListScreenState extends State<ChatsListScreen> {
                               fontSize: 13,
                               fontWeight: hasUnread ? FontWeight.w500 : FontWeight.normal,
                               color: hasUnread 
-                                  ? (isDark ? Colors.white : AxiomColors.lightText)
-                                  : (isDark ? AxiomColors.darkTextSecondary : AxiomColors.lightTextSecondary),
+                                  ? (isDark ? Colors.white : AppColors.lightText)
+                                  : (isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -335,7 +335,7 @@ class _ChatsListScreenState extends State<ChatsListScreen> {
                             margin: const EdgeInsets.only(left: 8),
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                             decoration: BoxDecoration(
-                              color: AxiomColors.accent,
+                              color: AppColors.accent,
                               borderRadius: BorderRadius.circular(20),
                             ),
                             child: Text(

@@ -110,7 +110,7 @@ class _GroupsListScreenState extends State<GroupsListScreen> {
     await _loadGroups();
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Left group'), backgroundColor: AxiomColors.accent),
+        const SnackBar(content: Text('Left group'), backgroundColor: AppColors.accent),
       );
     }
   }
@@ -121,7 +121,7 @@ class _GroupsListScreenState extends State<GroupsListScreen> {
     final isDark = themeProvider.isDarkMode;
 
     return Scaffold(
-      backgroundColor: isDark ? AxiomColors.darkBackground : AxiomColors.lightBackground,
+      backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
       appBar: AppBar(
         title: const Text('Groups'),
         backgroundColor: Colors.transparent,
@@ -148,13 +148,13 @@ class _GroupsListScreenState extends State<GroupsListScreen> {
                       Icon(
                         Icons.group,
                         size: 64,
-                        color: isDark ? AxiomColors.darkTextSecondary : AxiomColors.lightTextSecondary,
+                        color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
                       ),
                       const SizedBox(height: 16),
                       Text(
                         'No groups yet',
                         style: TextStyle(
-                          color: isDark ? AxiomColors.darkTextSecondary : AxiomColors.lightTextSecondary,
+                          color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -166,7 +166,7 @@ class _GroupsListScreenState extends State<GroupsListScreen> {
                           ).then((_) => _loadGroups());
                         },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: AxiomColors.accent,
+                          backgroundColor: AppColors.accent,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         ),
                         child: const Text('Create Group'),
@@ -182,15 +182,15 @@ class _GroupsListScreenState extends State<GroupsListScreen> {
                     return Container(
                       margin: const EdgeInsets.only(bottom: 12),
                       decoration: BoxDecoration(
-                        color: isDark ? AxiomColors.darkSurface : Colors.white,
+                        color: isDark ? AppColors.darkSurface : Colors.white,
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: ListTile(
                         leading: CircleAvatar(
-                          backgroundColor: AxiomColors.accent.withOpacity(0.2),
+                          backgroundColor: AppColors.accent.withOpacity(0.2),
                           child: Text(
                             group['name'][0].toUpperCase(),
-                            style: const TextStyle(color: AxiomColors.accent),
+                            style: const TextStyle(color: AppColors.accent),
                           ),
                         ),
                         title: Text(
@@ -235,7 +235,7 @@ class _GroupsListScreenState extends State<GroupsListScreen> {
             MaterialPageRoute(builder: (context) => const CreateGroupScreen()),
           ).then((_) => _loadGroups());
         },
-        backgroundColor: AxiomColors.accent,
+        backgroundColor: AppColors.accent,
         child: const Icon(Icons.add),
       ),
     );

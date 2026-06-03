@@ -21,6 +21,18 @@ class AuthService {
         email: email,
         password: password,
       );
+      
+      // Update online status after successful login
+      if (response.user != null) {
+        await _supabase
+            .from('users')
+            .update({
+              'online_status': true,
+              'last_seen': DateTime.now().toIso8601String()
+            })
+            .eq('id', response.user!.id);
+      }
+      
       return response.user;
     } catch (e) {
       throw Exception(e.toString());
@@ -28,6 +40,19 @@ class AuthService {
   }
 
   Future<void> signOut() async {
+    final user = _supabase.auth.currentUser;
+    
+    // Update online status to false before logout
+    if (user != null) {
+      await _supabase
+          .from('users')
+          .update({
+            'online_status': false,
+            'last_seen': DateTime.now().toIso8601String()
+          })
+          .eq('id', user.id);
+    }
+    
     await _supabase.auth.signOut();
   }
 

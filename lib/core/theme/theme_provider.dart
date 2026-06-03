@@ -13,33 +13,32 @@ class ThemeProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Light Theme
   ThemeData get lightTheme {
     return ThemeData(
       brightness: Brightness.light,
-      primaryColor: AxiomColors.accent,
-      scaffoldBackgroundColor: AxiomColors.lightBackground,
+      primaryColor: AppColors.primary,
+      scaffoldBackgroundColor: AppColors.lightBackground,
       colorScheme: const ColorScheme.light(
-        primary: AxiomColors.accent,
-        secondary: AxiomColors.accentLight,
-        surface: AxiomColors.lightSurface,
-        background: AxiomColors.lightBackground,
-        error: AxiomColors.error,
+        primary: AppColors.primary,
+        secondary: AppColors.secondary,
+        surface: AppColors.lightSurface,
+        background: AppColors.lightBackground,
+        error: AppColors.error,
       ),
       appBarTheme: const AppBarTheme(
-        backgroundColor: AxiomColors.lightBackground,
+        backgroundColor: AppColors.lightBackground,
         elevation: 0,
         centerTitle: false,
         titleTextStyle: TextStyle(
           fontSize: 20,
           fontWeight: FontWeight.w600,
-          color: AxiomColors.lightText,
+          color: AppColors.lightText,
         ),
-        iconTheme: IconThemeData(color: AxiomColors.lightText),
+        iconTheme: IconThemeData(color: AppColors.lightText),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: AxiomColors.lightSurface,
+        fillColor: AppColors.lightSurface,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
           borderSide: BorderSide.none,
@@ -47,7 +46,7 @@ class ThemeProvider extends ChangeNotifier {
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: AxiomColors.accent,
+          backgroundColor: AppColors.primary,
           foregroundColor: Colors.white,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
@@ -59,33 +58,32 @@ class ThemeProvider extends ChangeNotifier {
     );
   }
 
-  // Dark Theme
   ThemeData get darkTheme {
     return ThemeData(
       brightness: Brightness.dark,
-      primaryColor: AxiomColors.accent,
-      scaffoldBackgroundColor: AxiomColors.darkBackground,
+      primaryColor: AppColors.primary,
+      scaffoldBackgroundColor: AppColors.darkBackground,
       colorScheme: const ColorScheme.dark(
-        primary: AxiomColors.accent,
-        secondary: AxiomColors.accentLight,
-        surface: AxiomColors.darkSurface,
-         background: AxiomColors.darkBackground,
-        error: AxiomColors.error,
+        primary: AppColors.primary,
+        secondary: AppColors.secondary,
+        surface: AppColors.darkSurface,
+        background: AppColors.darkBackground,
+        error: AppColors.error,
       ),
       appBarTheme: const AppBarTheme(
-        backgroundColor: AxiomColors.darkBackground,
+        backgroundColor: AppColors.darkBackground,
         elevation: 0,
         centerTitle: false,
         titleTextStyle: TextStyle(
           fontSize: 20,
           fontWeight: FontWeight.w600,
-          color: AxiomColors.darkText,
+          color: AppColors.darkText,
         ),
-        iconTheme: IconThemeData(color: AxiomColors.darkText),
+        iconTheme: IconThemeData(color: AppColors.darkText),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: AxiomColors.darkSurface,
+        fillColor: AppColors.darkSurface,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
           borderSide: BorderSide.none,
@@ -93,7 +91,7 @@ class ThemeProvider extends ChangeNotifier {
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: AxiomColors.accent,
+          backgroundColor: AppColors.primary,
           foregroundColor: Colors.white,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),

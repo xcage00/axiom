@@ -1,23 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'core/theme/colors.dart';
 import 'core/theme/theme_provider.dart';
+import 'core/animations/widget_animations.dart';
+import 'features/onboarding/screens/onboarding_screen.dart';
 import 'features/auth/screens/login_screen.dart';
-import 'features/auth/screens/profile_setup_screen.dart';
-import 'features/home/screens/home_screen.dart';
+import 'features/auth/screens/auth_wrapper.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
-await Supabase.initialize(
-  url: 'https://xxppgotrkdzhltgdtsqn.supabase.co',
-  anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh4cHBnb3Rya2R6aGx0Z2R0c3FuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3ODk4MzUsImV4cCI6MjA5MjM2NTgzNX0.fGDnU_e_EdgeAT5su8_pM2Rslk64IYlVWw7zVCjRHWM',
-  headers: {
-    'Accept': 'application/json',
-    'Content-Type': 'application/json',
-  },
-);
+
+  await Supabase.initialize(
+    url: 'https://xxppgotrkdzhltgdtsqn.supabase.co',
+    anonKey:
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh4cHBnb3Rya2R6aGx0Z2R0c3FuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3ODk4MzUsImV4cCI6MjA5MjM2NTgzNX0.fGDnU_e_EdgeAT5su8_pM2Rslk64IYlVWw7zVCjRHWM',
+  );
+
   runApp(const AxiomApp());
 }
 
@@ -38,10 +38,10 @@ class AxiomApp extends StatelessWidget {
             debugShowCheckedModeBanner: false,
             initialRoute: '/',
             routes: {
-              '/': (context) => const AuthWrapper(),
+              '/': (context) => const SplashDecision(),
+              '/onboarding': (context) => const OnboardingScreen(),
               '/login': (context) => const LoginScreen(),
-              '/profile_setup': (context) => const ProfileSetupScreen(),
-              '/home': (context) => const HomeScreen(),
+              '/home': (context) => const AuthWrapper(),
             },
           );
         },
@@ -50,47 +50,73 @@ class AxiomApp extends StatelessWidget {
   }
 }
 
-class AuthWrapper extends StatelessWidget {
-  const AuthWrapper({super.key});
+class SplashDecision extends StatefulWidget {
+  const SplashDecision({super.key});
 
-  Future<bool> _hasProfile(String userId) async {
-    try {
-      final response = await Supabase.instance.client
-          .from('users')
-          .select()
-          .eq('id', userId)
-          .maybeSingle();
-      return response != null;
-    } catch (e) {
-      return false;
+  @override
+  State<SplashDecision> createState() => _SplashDecisionState();
+}
+
+class _SplashDecisionState extends State<SplashDecision> {
+  @override
+  void initState() {
+    super.initState();
+    _checkFirstLaunch();
+  }
+
+  Future<void> _checkFirstLaunch() async {
+    final prefs = await SharedPreferences.getInstance();
+    final hasSeenOnboarding = prefs.getBool('hasSeenOnboarding') ?? false;
+
+    // Simulate splash delay for smooth animation
+    await Future.delayed(const Duration(milliseconds: 500));
+
+    if (mounted) {
+      if (hasSeenOnboarding) {
+        Navigator.pushReplacementNamed(context, '/login');
+      } else {
+        await prefs.setBool('hasSeenOnboarding', true);
+        Navigator.pushReplacementNamed(context, '/onboarding');
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final session = Supabase.instance.client.auth.currentSession;
-    
-    if (session != null) {
-      return FutureBuilder(
-        future: _hasProfile(session.user.id),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Scaffold(
-              body: Center(
-                child: CircularProgressIndicator(),
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      body: Center(
+        child: TweenAnimationBuilder(
+          tween: Tween<double>(begin: 0.5, end: 1.0),
+          duration: const Duration(milliseconds: 800),
+          curve: Curves.elasticOut,
+          builder: (context, scale, child) {
+            return Transform.scale(
+              scale: scale,
+              child: Container(
+                width: 100,
+                height: 100,
+                decoration: BoxDecoration(
+                  gradient: AppColors.primaryGradient,
+                  borderRadius: BorderRadius.circular(24),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.primary.withOpacity(0.5),
+                      blurRadius: 30,
+                      offset: const Offset(0, 10),
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.chat_bubble_outline,
+                  size: 50,
+                  color: Colors.white,
+                ),
               ),
             );
-          }
-          
-          if (snapshot.hasData && snapshot.data == true) {
-            return const HomeScreen();
-          } else {
-            return const ProfileSetupScreen();
-          }
-        },
-      );
-    } else {
-      return const LoginScreen();
-    }
+          },
+        ),
+      ),
+    );
   }
 }

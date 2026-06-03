@@ -30,7 +30,7 @@ class ReactionPicker extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
       decoration: BoxDecoration(
-        color: isDark ? AxiomColors.darkSurface : Colors.white,
+        color: isDark ? AppColors.darkSurface : Colors.white,
         borderRadius: BorderRadius.circular(30),
         boxShadow: [
           BoxShadow(
@@ -56,7 +56,7 @@ class ReactionPicker extends StatelessWidget {
                     reaction['name'],
                     style: TextStyle(
                       fontSize: 10,
-                      color: isDark ? AxiomColors.darkTextSecondary : AxiomColors.lightTextSecondary,
+                      color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
                     ),
                   ),
                 ],
@@ -86,7 +86,7 @@ class DeleteOptions extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: isDark ? AxiomColors.darkSurface : Colors.white,
+        color: isDark ? AppColors.darkSurface : Colors.white,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
       ),
       child: Column(
@@ -140,7 +140,7 @@ class DeleteOptions extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: isDark ? AxiomColors.darkBackground : Colors.grey.shade50,
+          color: isDark ? AppColors.darkBackground : Colors.grey.shade50,
           borderRadius: BorderRadius.circular(12),
         ),
         child: Row(
@@ -153,7 +153,7 @@ class DeleteOptions extends StatelessWidget {
                 children: [
                   Text(title, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: color)),
                   const SizedBox(height: 2),
-                  Text(subtitle, style: TextStyle(fontSize: 12, color: isDark ? AxiomColors.darkTextSecondary : AxiomColors.lightTextSecondary)),
+                  Text(subtitle, style: TextStyle(fontSize: 12, color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary)),
                 ],
               ),
             ),
@@ -553,7 +553,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
         setState(() => _isSending = false);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Image sent!'), backgroundColor: AxiomColors.accent, duration: Duration(seconds: 1)),
+            const SnackBar(content: Text('Image sent!'), backgroundColor: AppColors.accent, duration: Duration(seconds: 1)),
           );
         }
       } else {
@@ -581,7 +581,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
         setState(() => _isSending = false);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Image sent!'), backgroundColor: AxiomColors.accent, duration: Duration(seconds: 1)),
+            const SnackBar(content: Text('Image sent!'), backgroundColor: AppColors.accent, duration: Duration(seconds: 1)),
           );
         }
       }
@@ -602,7 +602,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     final currentUserId = Supabase.instance.client.auth.currentUser?.id;
     
     return Scaffold(
-      backgroundColor: isDark ? AxiomColors.darkBackground : AxiomColors.lightBackground,
+      backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
       appBar: AppBar(
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -611,16 +611,16 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
             const SizedBox(height: 2),
             Row(
               children: [
-                Container(width: 8, height: 8, decoration: BoxDecoration(shape: BoxShape.circle, color: _contactOnline ? AxiomColors.accent : Colors.grey)),
+                Container(width: 8, height: 8, decoration: BoxDecoration(shape: BoxShape.circle, color: _contactOnline ? AppColors.accent : Colors.grey)),
                 const SizedBox(width: 4),
-                Text(_contactIsTyping ? 'Typing...' : (_contactOnline ? 'Online' : 'Offline'), style: TextStyle(fontSize: 11, color: _contactIsTyping ? AxiomColors.accent : (_contactOnline ? AxiomColors.accent : Colors.grey))),
+                Text(_contactIsTyping ? 'Typing...' : (_contactOnline ? 'Online' : 'Offline'), style: TextStyle(fontSize: 11, color: _contactIsTyping ? AppColors.accent : (_contactOnline ? AppColors.accent : Colors.grey))),
               ],
             ),
           ],
         ),
         backgroundColor: Colors.transparent,
         elevation: 0,
-        leading: IconButton(onPressed: () => Navigator.pop(context), icon: Icon(Icons.arrow_back, color: isDark ? AxiomColors.darkText : AxiomColors.lightText)),
+        leading: IconButton(onPressed: () => Navigator.pop(context), icon: Icon(Icons.arrow_back, color: isDark ? AppColors.darkText : AppColors.lightText)),
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -632,11 +632,11 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(Icons.chat_bubble_outline, size: 64, color: isDark ? AxiomColors.darkTextSecondary : AxiomColors.lightTextSecondary),
+                              Icon(Icons.chat_bubble_outline, size: 64, color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
                               const SizedBox(height: 16),
-                              Text('No messages yet', style: TextStyle(color: isDark ? AxiomColors.darkTextSecondary : AxiomColors.lightTextSecondary)),
+                              Text('No messages yet', style: TextStyle(color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary)),
                               const SizedBox(height: 8),
-                              Text('Send a message to start the conversation', style: TextStyle(fontSize: 12, color: isDark ? AxiomColors.darkTextSecondary : AxiomColors.lightTextSecondary)),
+                              Text('Send a message to start the conversation', style: TextStyle(fontSize: 12, color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary)),
                             ],
                           ),
                         )
@@ -692,7 +692,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                                   margin: const EdgeInsets.only(bottom: 8),
                                   padding: const EdgeInsets.all(8),
                                   decoration: BoxDecoration(
-                                    color: isMe ? AxiomColors.accent : (isDark ? AxiomColors.darkSurface : Colors.white),
+                                    color: isMe ? AppColors.accent : (isDark ? AppColors.darkSurface : Colors.white),
                                     borderRadius: BorderRadius.circular(16),
                                   ),
                                   child: Column(
@@ -716,7 +716,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                                       if (hasText)
                                         Padding(
                                           padding: EdgeInsets.only(top: hasImage ? 8 : 0, left: 8, right: 8, bottom: 4),
-                                          child: Text(message['message'], style: TextStyle(color: isMe ? Colors.white : (isDark ? AxiomColors.darkText : AxiomColors.lightText), fontSize: 14)),
+                                          child: Text(message['message'], style: TextStyle(color: isMe ? Colors.white : (isDark ? AppColors.darkText : AppColors.lightText), fontSize: 14)),
                                         ),
                                       if (message['reactions'] != null && (message['reactions'] as Map).isNotEmpty)
                                         Padding(
@@ -743,30 +743,30 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                 if (_isSending) const Padding(padding: EdgeInsets.all(8), child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)), SizedBox(width: 8), Text('Sending image...')])),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  decoration: BoxDecoration(color: isDark ? AxiomColors.darkSurface : Colors.white, boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4, offset: const Offset(0, -2))]),
+                  decoration: BoxDecoration(color: isDark ? AppColors.darkSurface : Colors.white, boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4, offset: const Offset(0, -2))]),
                   child: Row(
                     children: [
                       GestureDetector(
                         onTap: _isSending ? null : _pickAndSendImage,
                         child: Container(
                           padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(color: isDark ? AxiomColors.darkBackground : const Color(0xFFF5F5F5), borderRadius: BorderRadius.circular(25)),
-                          child: Icon(Icons.image, color: _isSending ? Colors.grey : AxiomColors.accent, size: 24),
+                          decoration: BoxDecoration(color: isDark ? AppColors.darkBackground : const Color(0xFFF5F5F5), borderRadius: BorderRadius.circular(25)),
+                          child: Icon(Icons.image, color: _isSending ? Colors.grey : AppColors.accent, size: 24),
                         ),
                       ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 16),
-                          decoration: BoxDecoration(color: isDark ? AxiomColors.darkBackground : const Color(0xFFF5F5F5), borderRadius: BorderRadius.circular(25)),
+                          decoration: BoxDecoration(color: isDark ? AppColors.darkBackground : const Color(0xFFF5F5F5), borderRadius: BorderRadius.circular(25)),
                           child: TextField(
                             controller: _messageController,
                             enabled: !_isSending,
                             onChanged: _onTextChanged,
-                            style: TextStyle(color: isDark ? AxiomColors.darkText : AxiomColors.lightText),
+                            style: TextStyle(color: isDark ? AppColors.darkText : AppColors.lightText),
                             decoration: InputDecoration(
                               hintText: 'Message...',
-                              hintStyle: TextStyle(color: isDark ? AxiomColors.darkTextSecondary : AxiomColors.lightTextSecondary),
+                              hintStyle: TextStyle(color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
                               border: InputBorder.none,
                               contentPadding: const EdgeInsets.symmetric(vertical: 12),
                             ),
@@ -781,7 +781,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                         onTap: () {
                           if (_messageController.text.trim().isNotEmpty && !_isSending) _sendMessage(text: _messageController.text.trim());
                         },
-                        child: Container(padding: const EdgeInsets.all(10), decoration: const BoxDecoration(color: AxiomColors.accent, shape: BoxShape.circle), child: const Icon(Icons.send, color: Colors.white, size: 20)),
+                        child: Container(padding: const EdgeInsets.all(10), decoration: const BoxDecoration(color: AppColors.accent, shape: BoxShape.circle), child: const Icon(Icons.send, color: Colors.white, size: 20)),
                       ),
                     ],
                   ),

@@ -24,7 +24,7 @@ class ReactionPicker extends StatelessWidget {
     
     return Container(
       decoration: BoxDecoration(
-        color: isDark ? AxiomColors.darkSurface : Colors.white,
+        color: isDark ? AppColors.darkSurface : Colors.white,
         borderRadius: BorderRadius.circular(30),
         boxShadow: [
           BoxShadow(
@@ -53,7 +53,7 @@ class ReactionPicker extends StatelessWidget {
                     reaction['name'],
                     style: TextStyle(
                       fontSize: 10,
-                      color: isDark ? AxiomColors.darkTextSecondary : AxiomColors.lightTextSecondary,
+                      color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
                     ),
                   ),
                 ],

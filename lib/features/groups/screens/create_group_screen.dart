@@ -87,7 +87,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
     if (mounted) {
       Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Group created!'), backgroundColor: AxiomColors.accent),
+        const SnackBar(content: Text('Group created!'), backgroundColor: AppColors.accent),
       );
     }
   }
@@ -98,7 +98,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
     final isDark = themeProvider.isDarkMode;
 
     return Scaffold(
-      backgroundColor: isDark ? AxiomColors.darkBackground : AxiomColors.lightBackground,
+      backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
       appBar: AppBar(
         title: const Text('Create Group'),
         backgroundColor: Colors.transparent,
@@ -143,7 +143,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
                     child: ElevatedButton(
                       onPressed: _isCreating ? null : _createGroup,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: AxiomColors.accent,
+                        backgroundColor: AppColors.accent,
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       ),

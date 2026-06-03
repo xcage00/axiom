@@ -192,14 +192,14 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     final currentUserId = Supabase.instance.client.auth.currentUser?.id;
 
     return Scaffold(
-      backgroundColor: isDark ? AxiomColors.darkBackground : AxiomColors.lightBackground,
+      backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
       appBar: AppBar(
         title: Text(widget.groupName),
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
           onPressed: () => Navigator.pop(context),
-          icon: Icon(Icons.arrow_back, color: isDark ? AxiomColors.darkText : AxiomColors.lightText),
+          icon: Icon(Icons.arrow_back, color: isDark ? AppColors.darkText : AppColors.lightText),
         ),
         actions: [
           IconButton(
@@ -218,9 +218,9 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(Icons.group, size: 64, color: isDark ? AxiomColors.darkTextSecondary : AxiomColors.lightTextSecondary),
+                              Icon(Icons.group, size: 64, color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
                               const SizedBox(height: 16),
-                              Text('No messages yet', style: TextStyle(color: isDark ? AxiomColors.darkTextSecondary : AxiomColors.lightTextSecondary)),
+                              Text('No messages yet', style: TextStyle(color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary)),
                               const SizedBox(height: 8),
                               Text('Send a message to start the conversation', style: TextStyle(fontSize: 12)),
                             ],
@@ -242,7 +242,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                 margin: const EdgeInsets.only(bottom: 8),
                                 padding: const EdgeInsets.all(8),
                                 decoration: BoxDecoration(
-                                  color: isMe ? AxiomColors.accent : (isDark ? AxiomColors.darkSurface : Colors.white),
+                                  color: isMe ? AppColors.accent : (isDark ? AppColors.darkSurface : Colors.white),
                                   borderRadius: BorderRadius.circular(16),
                                 ),
                                 child: Column(
@@ -277,7 +277,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                         padding: EdgeInsets.only(top: hasImage ? 8 : 0, left: 8, right: 8, bottom: 4),
                                         child: Text(
                                           message['message'],
-                                          style: TextStyle(color: isMe ? Colors.white : (isDark ? AxiomColors.darkText : AxiomColors.lightText)),
+                                          style: TextStyle(color: isMe ? Colors.white : (isDark ? AppColors.darkText : AppColors.lightText)),
                                         ),
                                       ),
                                   ],
@@ -291,7 +291,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   decoration: BoxDecoration(
-                    color: isDark ? AxiomColors.darkSurface : Colors.white,
+                    color: isDark ? AppColors.darkSurface : Colors.white,
                     boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4, offset: const Offset(0, -2))],
                   ),
                   child: Row(
@@ -301,10 +301,10 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                         child: Container(
                           padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
-                            color: isDark ? AxiomColors.darkBackground : const Color(0xFFF5F5F5),
+                            color: isDark ? AppColors.darkBackground : const Color(0xFFF5F5F5),
                             borderRadius: BorderRadius.circular(25),
                           ),
-                          child: Icon(Icons.image, color: AxiomColors.accent),
+                          child: Icon(Icons.image, color: AppColors.accent),
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -312,12 +312,12 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 16),
                           decoration: BoxDecoration(
-                            color: isDark ? AxiomColors.darkBackground : const Color(0xFFF5F5F5),
+                            color: isDark ? AppColors.darkBackground : const Color(0xFFF5F5F5),
                             borderRadius: BorderRadius.circular(25),
                           ),
                           child: TextField(
                             controller: _messageController,
-                            style: TextStyle(color: isDark ? AxiomColors.darkText : AxiomColors.lightText),
+                            style: TextStyle(color: isDark ? AppColors.darkText : AppColors.lightText),
                             decoration: InputDecoration(
                               hintText: 'Message...',
                               border: InputBorder.none,
@@ -336,7 +336,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                         },
                         child: Container(
                           padding: const EdgeInsets.all(10),
-                          decoration: const BoxDecoration(color: AxiomColors.accent, shape: BoxShape.circle),
+                          decoration: const BoxDecoration(color: AppColors.accent, shape: BoxShape.circle),
                           child: const Icon(Icons.send, color: Colors.white),
                         ),
                       ),
