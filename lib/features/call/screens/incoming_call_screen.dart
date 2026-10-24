@@ -1,18 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/theme/colors.dart';
-import '../../../core/theme/theme_provider.dart';
 import '../../../data/services/call_service.dart';
 import 'call_screen.dart';
 
 class IncomingCallScreen extends StatefulWidget {
   final Map<String, dynamic> callData;
 
-  const IncomingCallScreen({
-    super.key,
-    required this.callData,
-  });
+  const IncomingCallScreen({super.key, required this.callData});
 
   @override
   State<IncomingCallScreen> createState() => _IncomingCallScreenState();
@@ -21,7 +16,9 @@ class IncomingCallScreen extends StatefulWidget {
 class _IncomingCallScreenState extends State<IncomingCallScreen> {
   final CallService _callService = CallService();
   Map<String, dynamic>? _callerInfo;
-  bool _isLoading = true;
+  bool _callAuthorized = false;
+  bool _working = false;
+  String? _error;
 
   @override
   void initState() {
@@ -30,49 +27,97 @@ class _IncomingCallScreenState extends State<IncomingCallScreen> {
   }
 
   Future<void> _loadCallerInfo() async {
+    final client = Supabase.instance.client;
+    final currentUser = client.auth.currentUser;
+    final callId = widget.callData['id'];
     final callerId = widget.callData['caller_id'];
-    final response = await Supabase.instance.client
-        .from('users')
-        .select('full_name, username, avatar_url')
-        .eq('id', callerId)
-        .single();
-
-    setState(() {
-      _callerInfo = response;
-      _isLoading = false;
-    });
+    final receiverId = widget.callData['receiver_id'];
+    if (currentUser == null ||
+        currentUser.id != receiverId ||
+        callId is! String ||
+        callerId is! String) {
+      if (mounted)
+        setState(() => _error = 'This call is not addressed to your account.');
+      return;
+    }
+    try {
+      final call = await client
+          .from('calls')
+          .select('id,caller_id,receiver_id,call_type,status')
+          .eq('id', callId)
+          .single();
+      if (call['receiver_id'] != currentUser.id ||
+          call['caller_id'] != callerId ||
+          call['status'] != 'ringing' ||
+          !['audio', 'video'].contains(call['call_type'])) {
+        throw StateError('Call is no longer available.');
+      }
+      final response = await client
+          .from('users')
+          .select('full_name, username, avatar_url')
+          .eq('id', callerId)
+          .single();
+      if (mounted)
+        setState(() {
+          _callerInfo = response;
+          _callAuthorized = true;
+        });
+    } catch (_) {
+      if (mounted) setState(() => _error = 'This call is no longer available.');
+    }
   }
 
   void _acceptCall() async {
-    await _callService.answerCall(widget.callData['id']);
-    
-    if (mounted) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) => CallScreen(
-            contactId: widget.callData['caller_id'],
-            contactName: _callerInfo?['full_name'] ?? 'Caller',
-            isVideoCall: widget.callData['call_type'] == 'video',
-            callId: widget.callData['id'],
-            isInitiator: false,
+    if (!_callAuthorized || _working) return;
+    setState(() {
+      _working = true;
+      _error = null;
+    });
+    try {
+      await _callService.answerCall(widget.callData['id'] as String);
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => CallScreen(
+              contactId: widget.callData['caller_id'] as String,
+              contactName: _callerInfo?['full_name'] ?? 'Caller',
+              isVideoCall: widget.callData['call_type'] == 'video',
+              callId: widget.callData['id'] as String,
+              isInitiator: false,
+            ),
           ),
-        ),
-      );
+        );
+      }
+    } catch (_) {
+      if (mounted)
+        setState(() {
+          _working = false;
+          _error = 'Could not answer this call. Try again.';
+        });
     }
   }
 
   void _rejectCall() async {
-    await _callService.rejectCall(widget.callData['id']);
-    if (mounted) {
-      Navigator.pop(context);
+    if (!_callAuthorized || _working) return;
+    setState(() {
+      _working = true;
+      _error = null;
+    });
+    try {
+      await _callService.rejectCall(widget.callData['id'] as String);
+      if (mounted) Navigator.pop(context);
+    } catch (_) {
+      if (mounted)
+        setState(() {
+          _working = false;
+          _error = 'Could not decline this call. Try again.';
+        });
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final themeProvider = Provider.of<ThemeProvider>(context);
-    final isDark = themeProvider.isDarkMode;
     final isVideo = widget.callData['call_type'] == 'video';
 
     return Scaffold(
@@ -82,11 +127,9 @@ class _IncomingCallScreenState extends State<IncomingCallScreen> {
           children: [
             // Background gradient
             Container(
-              decoration: BoxDecoration(
-                gradient: AppColors.primaryGradient,
-              ),
+              decoration: BoxDecoration(gradient: AppColors.primaryGradient),
             ),
-            
+
             // Content
             Center(
               child: Column(
@@ -99,10 +142,7 @@ class _IncomingCallScreenState extends State<IncomingCallScreen> {
                     decoration: BoxDecoration(
                       color: Colors.white24,
                       shape: BoxShape.circle,
-                      border: Border.all(
-                        color: AppColors.primary,
-                        width: 3,
-                      ),
+                      border: Border.all(color: AppColors.primary, width: 3),
                     ),
                     child: ClipOval(
                       child: _callerInfo?['avatar_url'] != null
@@ -125,7 +165,7 @@ class _IncomingCallScreenState extends State<IncomingCallScreen> {
                     ),
                   ),
                   const SizedBox(height: 24),
-                  
+
                   // Caller name
                   Text(
                     _callerInfo?['full_name'] ?? 'Unknown',
@@ -136,7 +176,7 @@ class _IncomingCallScreenState extends State<IncomingCallScreen> {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  
+
                   // Call type
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -148,7 +188,9 @@ class _IncomingCallScreenState extends State<IncomingCallScreen> {
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        isVideo ? 'Incoming video call...' : 'Incoming voice call...',
+                        isVideo
+                            ? 'Incoming video call...'
+                            : 'Incoming voice call...',
                         style: const TextStyle(
                           fontSize: 16,
                           color: Colors.white70,
@@ -156,16 +198,30 @@ class _IncomingCallScreenState extends State<IncomingCallScreen> {
                       ),
                     ],
                   ),
-                  
+
                   const SizedBox(height: 60),
-                  
+
+                  if (_error != null) ...[
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 28),
+                      child: Text(
+                        _error!,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: Colors.white70),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                  ],
+
                   // Accept/Reject buttons
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
                       // Reject button
                       GestureDetector(
-                        onTap: _rejectCall,
+                        onTap: _callAuthorized && !_working
+                            ? _rejectCall
+                            : null,
                         child: Container(
                           width: 70,
                           height: 70,
@@ -187,10 +243,12 @@ class _IncomingCallScreenState extends State<IncomingCallScreen> {
                           ),
                         ),
                       ),
-                      
+
                       // Accept button
                       GestureDetector(
-                        onTap: _acceptCall,
+                        onTap: _callAuthorized && !_working
+                            ? _acceptCall
+                            : null,
                         child: Container(
                           width: 70,
                           height: 70,

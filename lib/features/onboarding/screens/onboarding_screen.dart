@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import '../../../core/theme/colors.dart';
-import '../../../core/theme/theme_provider.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -17,7 +15,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   final List<OnboardingData> _pages = [
     OnboardingData(
       title: 'Welcome to Axiom',
-      description: 'The future of messaging is here.\nPrivate, fast, and beautiful.',
+      description:
+          'The future of messaging is here.\nPrivate, fast, and beautiful.',
       icon: Icons.chat_bubble_outline,
       color: AppColors.primary,
     ),
@@ -43,9 +42,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final themeProvider = Provider.of<ThemeProvider>(context);
-    final isDark = themeProvider.isDarkMode;
-
     return Scaffold(
       backgroundColor: AppColors.background,
       body: Stack(
@@ -74,7 +70,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               ),
             );
           }),
-          
+
           PageView.builder(
             controller: _pageController,
             onPageChanged: (index) => setState(() => _currentPage = index),
@@ -102,7 +98,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                               height: 140,
                               decoration: BoxDecoration(
                                 gradient: LinearGradient(
-                                  colors: [page.color, page.color.withOpacity(0.5)],
+                                  colors: [
+                                    page.color,
+                                    page.color.withOpacity(0.5),
+                                  ],
                                 ),
                                 borderRadius: BorderRadius.circular(40),
                                 boxShadow: [
@@ -113,7 +112,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                                   ),
                                 ],
                               ),
-                              child: Icon(page.icon, size: 70, color: Colors.white),
+                              child: Icon(
+                                page.icon,
+                                size: 70,
+                                color: Colors.white,
+                              ),
                             ),
                             const SizedBox(height: 48),
                             Text(
@@ -145,7 +148,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               );
             },
           ),
-          
+
           // Bottom indicator & buttons
           Positioned(
             bottom: 40,
@@ -162,7 +165,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       width: _currentPage == index ? 24 : 8,
                       height: 8,
                       decoration: BoxDecoration(
-                        color: _currentPage == index ? AppColors.primary : Colors.white24,
+                        color: _currentPage == index
+                            ? AppColors.primary
+                            : Colors.white24,
                         borderRadius: BorderRadius.circular(4),
                       ),
                     );
@@ -189,7 +194,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                               ),
                               padding: const EdgeInsets.symmetric(vertical: 14),
                             ),
-                            child: const Text('Next', style: TextStyle(color: Colors.white)),
+                            child: const Text(
+                              'Next',
+                              style: TextStyle(color: Colors.white),
+                            ),
                           ),
                         ),
                       if (_currentPage == _pages.length - 1)
@@ -207,7 +215,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                               padding: const EdgeInsets.symmetric(vertical: 14),
                               elevation: 0,
                             ),
-                            child: const Text('Get Started', style: TextStyle(fontSize: 16)),
+                            child: const Text(
+                              'Get Started',
+                              style: TextStyle(fontSize: 16),
+                            ),
                           ),
                         ),
                       const SizedBox(width: 16),
@@ -224,7 +235,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                               ),
                               padding: const EdgeInsets.symmetric(vertical: 14),
                             ),
-                            child: const Text('Skip', style: TextStyle(color: Colors.white70)),
+                            child: const Text(
+                              'Skip',
+                              style: TextStyle(color: Colors.white70),
+                            ),
                           ),
                         ),
                     ],
@@ -244,7 +258,7 @@ class OnboardingData {
   final String description;
   final IconData icon;
   final Color color;
-  
+
   OnboardingData({
     required this.title,
     required this.description,

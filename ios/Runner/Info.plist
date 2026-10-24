@@ -26,6 +26,12 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>Axiom uses the camera for video calls.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Axiom uses the microphone for voice messages and calls.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Axiom lets you choose photos to share in chats and stories.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

@@ -1,13 +1,11 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/theme_provider.dart';
-import '../../../core/animations/widget_animations.dart';
 import '../../../data/services/call_service.dart';
 import '../../call/screens/call_screen.dart';
 

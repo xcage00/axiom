@@ -130,19 +130,6 @@ class _ContactsScreenState extends State<ContactsScreen> {
     }).toList();
   }
 
-  String _formatLastSeen(String? lastSeen) {
-    if (lastSeen == null) return 'recently';
-    final dateTime = DateTime.parse(lastSeen);
-    final now = DateTime.now();
-    final diff = now.difference(dateTime);
-    
-    if (diff.inMinutes < 1) return 'just now';
-    if (diff.inHours < 1) return '${diff.inMinutes} min ago';
-    if (diff.inDays < 1) return '${diff.inHours} hours ago';
-    if (diff.inDays < 7) return '${diff.inDays} days ago';
-    return '${(diff.inDays / 7).floor()} weeks ago';
-  }
-
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);

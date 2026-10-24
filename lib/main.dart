@@ -4,7 +4,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'core/theme/colors.dart';
 import 'core/theme/theme_provider.dart';
-import 'core/animations/widget_animations.dart';
 import 'features/onboarding/screens/onboarding_screen.dart';
 import 'features/auth/screens/login_screen.dart';
 import 'features/auth/screens/auth_wrapper.dart';
@@ -12,13 +11,37 @@ import 'features/auth/screens/auth_wrapper.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await Supabase.initialize(
-    url: 'https://xxppgotrkdzhltgdtsqn.supabase.co',
-    anonKey:
-        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh4cHBnb3Rya2R6aGx0Z2R0c3FuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3ODk4MzUsImV4cCI6MjA5MjM2NTgzNX0.fGDnU_e_EdgeAT5su8_pM2Rslk64IYlVWw7zVCjRHWM',
-  );
+  const supabaseUrl = String.fromEnvironment('SUPABASE_URL');
+  const supabaseAnonKey = String.fromEnvironment('SUPABASE_ANON_KEY');
+  if (supabaseUrl.isEmpty || supabaseAnonKey.isEmpty) {
+    runApp(const ConfigurationMissingApp());
+    return;
+  }
+
+  await Supabase.initialize(url: supabaseUrl, publishableKey: supabaseAnonKey);
 
   runApp(const AxiomApp());
+}
+
+class ConfigurationMissingApp extends StatelessWidget {
+  const ConfigurationMissingApp({super.key});
+
+  @override
+  Widget build(BuildContext context) => const MaterialApp(
+    home: Scaffold(
+      body: SafeArea(
+        child: Center(
+          child: Padding(
+            padding: EdgeInsets.all(24),
+            child: Text(
+              'Axiom is not configured for this build. Provide SUPABASE_URL and SUPABASE_ANON_KEY with --dart-define.',
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
 }
 
 class AxiomApp extends StatelessWidget {
