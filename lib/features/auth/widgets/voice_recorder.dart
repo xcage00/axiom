@@ -1,8 +1,11 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:record/record.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:path_provider/path_provider.dart';
+import '../../../core/theme/colors.dart';
+import '../../../utilis/permission_helper.dart';
 
 class VoiceRecorder extends StatefulWidget {
   final Function(File) onRecordingComplete;
@@ -20,20 +23,36 @@ class _VoiceRecorderState extends State<VoiceRecorder> {
   bool _isPlaying = false;
   String? _recordingPath;
   Duration _recordingDuration = Duration.zero;
+  late final StreamSubscription<void> _playbackCompletionSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    _playbackCompletionSubscription = _player.onPlayerComplete.listen((_) {
+      if (mounted) setState(() => _isPlaying = false);
+    });
+  }
 
   @override
   void dispose() {
     _recorder.dispose();
     _player.dispose();
+    _playbackCompletionSubscription.cancel();
     super.dispose();
   }
 
   Future<void> _startRecording() async {
     try {
+      final hasMicrophonePermission =
+          await PermissionHelper.requestMicrophonePermission();
+      if (!hasMicrophonePermission || !mounted) return;
+
       final Directory appDir = await getTemporaryDirectory();
-      final String filePath = '${appDir.path}/voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
-      
+      final String filePath =
+          '${appDir.path}/voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
+
       await _recorder.start(const RecordConfig(), path: filePath);
+      if (!mounted) return;
       setState(() {
         _isRecording = true;
         _recordingPath = filePath;
@@ -44,31 +63,45 @@ class _VoiceRecorderState extends State<VoiceRecorder> {
   }
 
   Future<void> _stopRecording() async {
-    final path = await _recorder.stop();
-    setState(() {
-      _isRecording = false;
-      _recordingPath = path;
-    });
-    _getDuration();
+    try {
+      final path = await _recorder.stop();
+      if (!mounted) return;
+      setState(() {
+        _isRecording = false;
+        _recordingPath = path;
+      });
+      await _getDuration();
+    } catch (_) {
+      if (mounted) setState(() => _isRecording = false);
+    }
   }
 
   Future<void> _getDuration() async {
     if (_recordingPath != null) {
-      final duration = await _player.getDuration(path: _recordingPath!);
-      setState(() {
-        _recordingDuration = duration ?? Duration.zero;
-      });
+      await _player.setSource(DeviceFileSource(_recordingPath!));
+      final duration = await _player.getDuration();
+      if (mounted) {
+        setState(() {
+          _recordingDuration = duration ?? Duration.zero;
+        });
+      }
     }
   }
 
   Future<void> _playRecording() async {
     if (_recordingPath == null) return;
-    
-    setState(() => _isPlaying = true);
-    await _player.play(DeviceFileSource(_recordingPath!));
-    _player.onPlayerComplete.listen((event) {
-      setState(() => _isPlaying = false);
-    });
+
+    try {
+      await _player.play(DeviceFileSource(_recordingPath!));
+      if (mounted) setState(() => _isPlaying = true);
+    } catch (_) {
+      if (mounted) setState(() => _isPlaying = false);
+    }
+  }
+
+  Future<void> _stopPlayback() async {
+    await _player.stop();
+    if (mounted) setState(() => _isPlaying = false);
   }
 
   void _sendRecording() {
@@ -85,16 +118,19 @@ class _VoiceRecorderState extends State<VoiceRecorder> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Text('Voice Message', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+          const Text(
+            'Voice Message',
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          ),
           const SizedBox(height: 20),
-          
+
           // Duration display
           Text(
             '${_recordingDuration.inMinutes.remainder(60).toString().padLeft(2, '0')}:${_recordingDuration.inSeconds.remainder(60).toString().padLeft(2, '0')}',
             style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 20),
-          
+
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
@@ -104,15 +140,18 @@ class _VoiceRecorderState extends State<VoiceRecorder> {
                 color: Colors.red,
                 onPressed: _isRecording ? _stopRecording : _startRecording,
               ),
-              
+
               // Play button
               if (_recordingPath != null && !_isRecording)
                 IconButton(
-                  icon: Icon(_isPlaying ? Icons.stop : Icons.play_arrow, size: 48),
+                  icon: Icon(
+                    _isPlaying ? Icons.stop : Icons.play_arrow,
+                    size: 48,
+                  ),
                   color: AppColors.primary,
-                  onPressed: _isPlaying ? () => _player.stop() : _playRecording,
+                  onPressed: _isPlaying ? _stopPlayback : _playRecording,
                 ),
-              
+
               // Send button
               if (_recordingPath != null && !_isRecording)
                 IconButton(

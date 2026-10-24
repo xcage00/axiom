@@ -1,5 +1,11 @@
 {
   "dependencies": {
     "ws": "^8.21.0"
+  },
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
   }
 }

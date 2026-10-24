@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import '../../../core/theme/colors.dart';
-import '../../../core/theme/theme_provider.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -17,37 +15,44 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   final List<OnboardingData> _pages = [
     OnboardingData(
       title: 'Welcome to Axiom',
-      description: 'The future of messaging is here.\nPrivate, fast, and beautiful.',
+      description:
+          'A thoughtful place for the conversations\nthat bring you closer.',
       icon: Icons.chat_bubble_outline,
       color: AppColors.primary,
     ),
     OnboardingData(
-      title: 'End-to-End Encrypted',
-      description: 'Your conversations are secure.\nNo one else can read them.',
+      title: 'Stay in the moment',
+      description: 'Keep up with your people through\nreal-time messaging.',
       icon: Icons.lock_outline,
       color: AppColors.secondary,
     ),
     OnboardingData(
       title: 'Share Stories & Moments',
-      description: 'Post photos and videos that disappear after 24 hours.',
+      description:
+          'Share photo moments with your circle\nand revisit them in Stories.',
       icon: Icons.bookmark_outline,
       color: AppColors.accent,
     ),
     OnboardingData(
       title: 'Real-time Voice & Video',
-      description: 'Crystal clear calls with friends\nanywhere in the world.',
+      description: 'Bring a conversation closer with\nvoice and video calls.',
       icon: Icons.call_outlined,
       color: AppColors.primary,
     ),
   ];
 
   @override
-  Widget build(BuildContext context) {
-    final themeProvider = Provider.of<ThemeProvider>(context);
-    final isDark = themeProvider.isDarkMode;
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
 
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: theme.scaffoldBackgroundColor,
       body: Stack(
         children: [
           // Animated background particles
@@ -65,7 +70,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       width: 2,
                       height: 2,
                       decoration: BoxDecoration(
-                        color: AppColors.primary,
+                        color: colors.primary.withValues(alpha: .45),
                         shape: BoxShape.circle,
                       ),
                     ),
@@ -74,7 +79,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               ),
             );
           }),
-          
+
           PageView.builder(
             controller: _pageController,
             onPageChanged: (index) => setState(() => _currentPage = index),
@@ -102,26 +107,31 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                               height: 140,
                               decoration: BoxDecoration(
                                 gradient: LinearGradient(
-                                  colors: [page.color, page.color.withOpacity(0.5)],
+                                  colors: [
+                                    page.color,
+                                    page.color.withValues(alpha: 0.5),
+                                  ],
                                 ),
                                 borderRadius: BorderRadius.circular(40),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: page.color.withOpacity(0.4),
+                                    color: page.color.withValues(alpha: 0.32),
                                     blurRadius: 30,
                                     offset: const Offset(0, 10),
                                   ),
                                 ],
                               ),
-                              child: Icon(page.icon, size: 70, color: Colors.white),
+                              child: Icon(
+                                page.icon,
+                                size: 70,
+                                color: Colors.white,
+                              ),
                             ),
                             const SizedBox(height: 48),
                             Text(
                               page.title,
-                              style: const TextStyle(
-                                fontSize: 32,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
+                              style: theme.textTheme.headlineMedium?.copyWith(
+                                fontWeight: FontWeight.w700,
                                 letterSpacing: -0.5,
                               ),
                               textAlign: TextAlign.center,
@@ -129,9 +139,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                             const SizedBox(height: 16),
                             Text(
                               page.description,
-                              style: const TextStyle(
-                                fontSize: 16,
-                                color: Colors.white70,
+                              style: theme.textTheme.bodyLarge?.copyWith(
+                                color: colors.onSurfaceVariant,
                                 height: 1.5,
                               ),
                               textAlign: TextAlign.center,
@@ -145,10 +154,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               );
             },
           ),
-          
+
           // Bottom indicator & buttons
           Positioned(
-            bottom: 40,
+            bottom: 20 + MediaQuery.paddingOf(context).bottom,
             left: 0,
             right: 0,
             child: Column(
@@ -162,7 +171,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       width: _currentPage == index ? 24 : 8,
                       height: 8,
                       decoration: BoxDecoration(
-                        color: _currentPage == index ? AppColors.primary : Colors.white24,
+                        color: _currentPage == index
+                            ? colors.primary
+                            : colors.outline,
                         borderRadius: BorderRadius.circular(4),
                       ),
                     );
@@ -183,13 +194,17 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                               );
                             },
                             style: OutlinedButton.styleFrom(
-                              side: const BorderSide(color: Colors.white24),
+                              foregroundColor: colors.onSurface,
+                              side: BorderSide(color: colors.outline),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(16),
                               ),
                               padding: const EdgeInsets.symmetric(vertical: 14),
                             ),
-                            child: const Text('Next', style: TextStyle(color: Colors.white)),
+                            child: Text(
+                              'Next',
+                              style: TextStyle(color: colors.onSurface),
+                            ),
                           ),
                         ),
                       if (_currentPage == _pages.length - 1)
@@ -207,7 +222,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                               padding: const EdgeInsets.symmetric(vertical: 14),
                               elevation: 0,
                             ),
-                            child: const Text('Get Started', style: TextStyle(fontSize: 16)),
+                            child: const Text(
+                              'Get Started',
+                              style: TextStyle(fontSize: 16),
+                            ),
                           ),
                         ),
                       const SizedBox(width: 16),
@@ -218,13 +236,17 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                               Navigator.pushReplacementNamed(context, '/login');
                             },
                             style: OutlinedButton.styleFrom(
-                              side: const BorderSide(color: Colors.white24),
+                              foregroundColor: colors.onSurface,
+                              side: BorderSide(color: colors.outline),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(16),
                               ),
                               padding: const EdgeInsets.symmetric(vertical: 14),
                             ),
-                            child: const Text('Skip', style: TextStyle(color: Colors.white70)),
+                            child: Text(
+                              'Skip',
+                              style: TextStyle(color: colors.onSurfaceVariant),
+                            ),
                           ),
                         ),
                     ],
@@ -244,7 +266,7 @@ class OnboardingData {
   final String description;
   final IconData icon;
   final Color color;
-  
+
   OnboardingData({
     required this.title,
     required this.description,

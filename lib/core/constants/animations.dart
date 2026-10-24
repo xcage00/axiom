@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 
 class AppAnimations {
@@ -7,13 +8,13 @@ class AppAnimations {
   static const Duration fast = Duration(milliseconds: 250);
   static const Duration normal = Duration(milliseconds: 400);
   static const Duration slow = Duration(milliseconds: 600);
-  
+
   // Curves
   static const Curve spring = Curves.elasticOut;
   static const Curve easeInOut = Curves.easeInOutCubic;
   static const Curve easeOut = Curves.easeOutCubic;
   static const Curve bounce = Curves.bounceOut;
-  
+
   // Page transitions
   static const PageTransitionsTheme pageTransitions = PageTransitionsTheme(
     builders: {
@@ -32,7 +33,7 @@ class Haptic {
       // Web doesn't support haptics
     }
   }
-  
+
   static void medium() {
     try {
       HapticFeedback.mediumImpact();
@@ -40,7 +41,7 @@ class Haptic {
       // Web doesn't support haptics
     }
   }
-  
+
   static void heavy() {
     try {
       HapticFeedback.heavyImpact();
@@ -48,7 +49,7 @@ class Haptic {
       // Web doesn't support haptics
     }
   }
-  
+
   static void selection() {
     try {
       HapticFeedback.selectionClick();

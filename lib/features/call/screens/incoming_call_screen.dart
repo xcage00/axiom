@@ -1,18 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/theme/colors.dart';
-import '../../../core/theme/theme_provider.dart';
 import '../../../data/services/call_service.dart';
 import 'call_screen.dart';
 
 class IncomingCallScreen extends StatefulWidget {
   final Map<String, dynamic> callData;
 
-  const IncomingCallScreen({
-    super.key,
-    required this.callData,
-  });
+  const IncomingCallScreen({super.key, required this.callData});
 
   @override
   State<IncomingCallScreen> createState() => _IncomingCallScreenState();
@@ -21,7 +16,9 @@ class IncomingCallScreen extends StatefulWidget {
 class _IncomingCallScreenState extends State<IncomingCallScreen> {
   final CallService _callService = CallService();
   Map<String, dynamic>? _callerInfo;
-  bool _isLoading = true;
+  bool _callAuthorized = false;
+  bool _working = false;
+  String? _error;
 
   @override
   void initState() {
@@ -30,50 +27,99 @@ class _IncomingCallScreenState extends State<IncomingCallScreen> {
   }
 
   Future<void> _loadCallerInfo() async {
+    final client = Supabase.instance.client;
+    final currentUser = client.auth.currentUser;
+    final callId = widget.callData['id'];
     final callerId = widget.callData['caller_id'];
-    final response = await Supabase.instance.client
-        .from('users')
-        .select('full_name, username, avatar_url')
-        .eq('id', callerId)
-        .single();
-
-    setState(() {
-      _callerInfo = response;
-      _isLoading = false;
-    });
+    final receiverId = widget.callData['receiver_id'];
+    if (currentUser == null ||
+        currentUser.id != receiverId ||
+        callId is! String ||
+        callerId is! String) {
+      if (mounted)
+        setState(() => _error = 'This call is not addressed to your account.');
+      return;
+    }
+    try {
+      final call = await client
+          .from('calls')
+          .select('id,caller_id,receiver_id,call_type,status')
+          .eq('id', callId)
+          .single();
+      if (call['receiver_id'] != currentUser.id ||
+          call['caller_id'] != callerId ||
+          call['status'] != 'ringing' ||
+          !['audio', 'video'].contains(call['call_type'])) {
+        throw StateError('Call is no longer available.');
+      }
+      final response = await client
+          .from('users')
+          .select('full_name, username, avatar_url')
+          .eq('id', callerId)
+          .single();
+      if (mounted)
+        setState(() {
+          _callerInfo = response;
+          _callAuthorized = true;
+        });
+    } catch (_) {
+      if (mounted) setState(() => _error = 'This call is no longer available.');
+    }
   }
 
   void _acceptCall() async {
-    await _callService.answerCall(widget.callData['id']);
-    
-    if (mounted) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) => CallScreen(
-            contactId: widget.callData['caller_id'],
-            contactName: _callerInfo?['full_name'] ?? 'Caller',
-            isVideoCall: widget.callData['call_type'] == 'video',
-            callId: widget.callData['id'],
-            isInitiator: false,
+    if (!_callAuthorized || _working) return;
+    setState(() {
+      _working = true;
+      _error = null;
+    });
+    try {
+      await _callService.answerCall(widget.callData['id'] as String);
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => CallScreen(
+              contactId: widget.callData['caller_id'] as String,
+              contactName: _callerInfo?['full_name'] ?? 'Caller',
+              isVideoCall: widget.callData['call_type'] == 'video',
+              callId: widget.callData['id'] as String,
+              isInitiator: false,
+            ),
           ),
-        ),
-      );
+        );
+      }
+    } catch (_) {
+      if (mounted)
+        setState(() {
+          _working = false;
+          _error = 'Could not answer this call. Try again.';
+        });
     }
   }
 
   void _rejectCall() async {
-    await _callService.rejectCall(widget.callData['id']);
-    if (mounted) {
-      Navigator.pop(context);
+    if (!_callAuthorized || _working) return;
+    setState(() {
+      _working = true;
+      _error = null;
+    });
+    try {
+      await _callService.rejectCall(widget.callData['id'] as String);
+      if (mounted) Navigator.pop(context);
+    } catch (_) {
+      if (mounted)
+        setState(() {
+          _working = false;
+          _error = 'Could not decline this call. Try again.';
+        });
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final themeProvider = Provider.of<ThemeProvider>(context);
-    final isDark = themeProvider.isDarkMode;
     final isVideo = widget.callData['call_type'] == 'video';
+    final callerName = _callerInfo?['full_name'] as String? ?? 'Caller';
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -82,11 +128,9 @@ class _IncomingCallScreenState extends State<IncomingCallScreen> {
           children: [
             // Background gradient
             Container(
-              decoration: BoxDecoration(
-                gradient: AppColors.primaryGradient,
-              ),
+              decoration: BoxDecoration(gradient: AppColors.primaryGradient),
             ),
-            
+
             // Content
             Center(
               child: Column(
@@ -99,10 +143,7 @@ class _IncomingCallScreenState extends State<IncomingCallScreen> {
                     decoration: BoxDecoration(
                       color: Colors.white24,
                       shape: BoxShape.circle,
-                      border: Border.all(
-                        color: AppColors.primary,
-                        width: 3,
-                      ),
+                      border: Border.all(color: AppColors.primary, width: 3),
                     ),
                     child: ClipOval(
                       child: _callerInfo?['avatar_url'] != null
@@ -125,10 +166,10 @@ class _IncomingCallScreenState extends State<IncomingCallScreen> {
                     ),
                   ),
                   const SizedBox(height: 24),
-                  
+
                   // Caller name
                   Text(
-                    _callerInfo?['full_name'] ?? 'Unknown',
+                    callerName,
                     style: const TextStyle(
                       fontSize: 28,
                       fontWeight: FontWeight.bold,
@@ -136,7 +177,24 @@ class _IncomingCallScreenState extends State<IncomingCallScreen> {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  
+
+                  if (_callerInfo == null && _error == null) ...[
+                    const SizedBox(height: 14),
+                    const SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white70,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    const Text(
+                      'Checking this call…',
+                      style: TextStyle(color: Colors.white70, fontSize: 13),
+                    ),
+                  ],
+
                   // Call type
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -148,7 +206,9 @@ class _IncomingCallScreenState extends State<IncomingCallScreen> {
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        isVideo ? 'Incoming video call...' : 'Incoming voice call...',
+                        isVideo
+                            ? 'Incoming video call...'
+                            : 'Incoming voice call...',
                         style: const TextStyle(
                           fontSize: 16,
                           color: Colors.white70,
@@ -156,61 +216,39 @@ class _IncomingCallScreenState extends State<IncomingCallScreen> {
                       ),
                     ],
                   ),
-                  
-                  const SizedBox(height: 60),
-                  
-                  // Accept/Reject buttons
+
+                  const SizedBox(height: 48),
+
+                  if (_error != null) ...[
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 28),
+                      child: Text(
+                        _error!,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: Colors.white70),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                  ],
+
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
-                      // Reject button
-                      GestureDetector(
-                        onTap: _rejectCall,
-                        child: Container(
-                          width: 70,
-                          height: 70,
-                          decoration: BoxDecoration(
-                            color: AppColors.error,
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(
-                                color: AppColors.error.withOpacity(0.4),
-                                blurRadius: 20,
-                                offset: const Offset(0, 5),
-                              ),
-                            ],
-                          ),
-                          child: const Icon(
-                            Icons.call_end,
-                            size: 35,
-                            color: Colors.white,
-                          ),
-                        ),
+                      _buildCallAction(
+                        label: 'Decline',
+                        icon: Icons.call_end_rounded,
+                        color: AppColors.error,
+                        onTap: _callAuthorized && !_working
+                            ? _rejectCall
+                            : null,
                       ),
-                      
-                      // Accept button
-                      GestureDetector(
-                        onTap: _acceptCall,
-                        child: Container(
-                          width: 70,
-                          height: 70,
-                          decoration: BoxDecoration(
-                            color: AppColors.success,
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(
-                                color: AppColors.success.withOpacity(0.4),
-                                blurRadius: 20,
-                                offset: const Offset(0, 5),
-                              ),
-                            ],
-                          ),
-                          child: const Icon(
-                            Icons.call,
-                            size: 35,
-                            color: Colors.white,
-                          ),
-                        ),
+                      _buildCallAction(
+                        label: 'Answer',
+                        icon: Icons.call_rounded,
+                        color: AppColors.success,
+                        onTap: _callAuthorized && !_working
+                            ? _acceptCall
+                            : null,
                       ),
                     ],
                   ),
@@ -219,6 +257,58 @@ class _IncomingCallScreenState extends State<IncomingCallScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildCallAction({
+    required String label,
+    required IconData icon,
+    required Color color,
+    required VoidCallback? onTap,
+  }) {
+    return Semantics(
+      button: true,
+      enabled: onTap != null,
+      label: label,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Material(
+            color: color.withValues(alpha: onTap == null ? .55 : 1),
+            shape: const CircleBorder(),
+            elevation: 8,
+            shadowColor: color.withValues(alpha: .35),
+            child: InkWell(
+              customBorder: const CircleBorder(),
+              onTap: onTap,
+              child: SizedBox(
+                width: 70,
+                height: 70,
+                child: Center(
+                  child: _working
+                      ? const SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : Icon(icon, size: 30, color: Colors.white),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
       ),
     );
   }

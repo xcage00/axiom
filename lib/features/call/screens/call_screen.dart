@@ -1,12 +1,11 @@
 import 'dart:async';
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
-import 'package:provider/provider.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/theme/colors.dart';
-import '../../../core/theme/theme_provider.dart';
 import '../../../data/services/call_service.dart';
 
 class CallScreen extends StatefulWidget {
@@ -37,17 +36,23 @@ class _CallScreenState extends State<CallScreen> {
   bool _isConnected = false;
   bool _isMuted = false;
   bool _isSpeakerOn = true;
+  bool _isCameraEnabled = true;
   Timer? _callTimer;
   Duration _callDuration = Duration.zero;
   bool _isCallActive = false;
-  
+  bool _isEnding = false;
+
   // Video renderers
   RTCVideoRenderer? _localRenderer;
   RTCVideoRenderer? _remoteRenderer;
-  
+
   // Signaling WebSocket
   WebSocketChannel? _channel;
   bool _isWebSocketConnected = false;
+  String? _connectionError;
+  final List<RTCIceCandidate> _pendingCandidates = [];
+  final Completer<void> _joined = Completer<void>();
+  StreamSubscription<dynamic>? _callStatusSubscription;
 
   @override
   void initState() {
@@ -60,7 +65,7 @@ class _CallScreenState extends State<CallScreen> {
   @override
   void dispose() {
     _callTimer?.cancel();
-    _cleanup();
+    unawaited(_cleanup());
     super.dispose();
   }
 
@@ -89,7 +94,7 @@ class _CallScreenState extends State<CallScreen> {
   }
 
   void _listenForCallStatus() {
-    Supabase.instance.client
+    _callStatusSubscription = Supabase.instance.client
         .from('calls')
         .stream(primaryKey: ['id'])
         .eq('id', widget.callId)
@@ -97,7 +102,7 @@ class _CallScreenState extends State<CallScreen> {
           if (data.isNotEmpty && mounted) {
             final call = data.first;
             if (call['status'] == 'ended' && mounted) {
-              _endCall();
+              _endCall(updateBackend: false);
             }
             if (call['status'] == 'answered' && !_isCallActive && mounted) {
               setState(() {
@@ -111,36 +116,79 @@ class _CallScreenState extends State<CallScreen> {
 
   Future<void> _connectWebSocket() async {
     final currentUser = Supabase.instance.client.auth.currentUser;
-    final wsUrl = 'ws://192.168.1.69:8080';
-    
-    _channel = WebSocketChannel.connect(Uri.parse(wsUrl));
-    
-    _channel!.stream.listen((message) {
-      final data = jsonDecode(message);
-      _handleSignalingMessage(data);
-    }, onDone: () {
-      print('WebSocket closed');
-      _isWebSocketConnected = false;
-    }, onError: (error) {
-      print('WebSocket error: $error');
-    });
-    
-    _isWebSocketConnected = true;
-    
-    // Join room
-    final joinMessage = {
-      'type': 'join',
-      'room': widget.callId,
-      'userId': currentUser!.id,
-    };
-    _channel!.sink.add(jsonEncode(joinMessage));
-    
-    if (widget.isInitiator) {
-      _initWebRTC();
+    final session = Supabase.instance.client.auth.currentSession;
+    const configuredUrl = String.fromEnvironment('AXIOM_SIGNALING_URL');
+    final uri = Uri.tryParse(configuredUrl);
+    final allowInsecureDebug = kDebugMode;
+    if (currentUser == null ||
+        session == null ||
+        uri == null ||
+        (uri.scheme != 'wss' && !(allowInsecureDebug && uri.scheme == 'ws')) ||
+        uri.host.isEmpty) {
+      _showConnectionError('Calling is not configured for this build.');
+      return;
+    }
+
+    _channel = WebSocketChannel.connect(uri);
+
+    _channel!.stream.listen(
+      (message) {
+        try {
+          final decoded = jsonDecode(message as String);
+          if (decoded is! Map<String, dynamic>) return;
+          if (decoded['type'] == 'joined' &&
+              decoded['callId'] == widget.callId) {
+            _isWebSocketConnected = true;
+            if (!_joined.isCompleted) _joined.complete();
+            if (widget.isInitiator) _initWebRTC();
+            return;
+          }
+          if (decoded['type'] == 'error') {
+            _showConnectionError(
+              decoded['message'] is String
+                  ? decoded['message'] as String
+                  : 'Signaling authorization failed.',
+            );
+            return;
+          }
+          _handleSignalingMessage(decoded);
+        } catch (_) {
+          _showConnectionError('Received an invalid signaling message.');
+        }
+      },
+      onDone: () {
+        _isWebSocketConnected = false;
+      },
+      onError: (_) {
+        _isWebSocketConnected = false;
+        _showConnectionError('Could not connect to the calling service.');
+      },
+    );
+    try {
+      await _channel!.ready.timeout(const Duration(seconds: 12));
+      _channel!.sink.add(
+        jsonEncode({
+          'type': 'join',
+          'callId': widget.callId,
+          'userId': currentUser.id,
+          'accessToken': session.accessToken,
+        }),
+      );
+      await _joined.future.timeout(const Duration(seconds: 12));
+    } catch (_) {
+      _showConnectionError(
+        'Could not join this call. Check the connection and try again.',
+      );
     }
   }
 
+  void _showConnectionError(String message) {
+    if (!mounted) return;
+    setState(() => _connectionError = message);
+  }
+
   void _handleSignalingMessage(Map<String, dynamic> data) {
+    if (data['senderId'] != widget.contactId) return;
     switch (data['type']) {
       case 'offer':
         _handleOffer(data);
@@ -160,7 +208,7 @@ class _CallScreenState extends State<CallScreen> {
         'iceServers': [
           {'urls': 'stun:stun.l.google.com:19302'},
           {'urls': 'stun:stun1.l.google.com:19302'},
-        ]
+        ],
       };
 
       _peerConnection = await createPeerConnection(configuration);
@@ -171,8 +219,10 @@ class _CallScreenState extends State<CallScreen> {
         'video': widget.isVideoCall,
       };
 
-      _localStream = await navigator.mediaDevices.getUserMedia(mediaConstraints);
-      
+      _localStream = await navigator.mediaDevices.getUserMedia(
+        mediaConstraints,
+      );
+
       if (_localStream != null && _localRenderer != null) {
         _localRenderer!.srcObject = _localStream;
         _peerConnection!.addStream(_localStream!);
@@ -194,24 +244,19 @@ class _CallScreenState extends State<CallScreen> {
       // Handle ICE candidates
       _peerConnection!.onIceCandidate = (candidate) {
         if (_isWebSocketConnected && _channel != null) {
-          _channel!.sink.add(jsonEncode({
-            'type': 'candidate',
-            'candidate': candidate.toMap(),
-          }));
+          _channel!.sink.add(
+            jsonEncode({'type': 'candidate', 'candidate': candidate.toMap()}),
+          );
         }
       };
 
       // Create and send offer
       RTCSessionDescription offer = await _peerConnection!.createOffer();
       await _peerConnection!.setLocalDescription(offer);
-      
-      if (_isWebSocketConnected && _channel != null) {
-        _channel!.sink.add(jsonEncode({
-          'type': 'offer',
-          'sdp': offer.sdp,
-        }));
-      }
 
+      if (_isWebSocketConnected && _channel != null) {
+        _channel!.sink.add(jsonEncode({'type': 'offer', 'sdp': offer.sdp}));
+      }
     } catch (e) {
       print('Error initializing WebRTC: $e');
     }
@@ -223,21 +268,23 @@ class _CallScreenState extends State<CallScreen> {
         Map<String, dynamic> configuration = {
           'iceServers': [
             {'urls': 'stun:stun.l.google.com:19302'},
-          ]
+          ],
         };
         _peerConnection = await createPeerConnection(configuration);
-        
+
         // Get local stream
         Map<String, dynamic> mediaConstraints = {
           'audio': true,
           'video': widget.isVideoCall,
         };
-        _localStream = await navigator.mediaDevices.getUserMedia(mediaConstraints);
+        _localStream = await navigator.mediaDevices.getUserMedia(
+          mediaConstraints,
+        );
         if (_localStream != null && _localRenderer != null) {
           _localRenderer!.srcObject = _localStream;
           _peerConnection!.addStream(_localStream!);
         }
-        
+
         _peerConnection!.onTrack = (event) {
           if (event.streams.isNotEmpty && mounted) {
             setState(() {
@@ -249,33 +296,29 @@ class _CallScreenState extends State<CallScreen> {
             });
           }
         };
-        
+
         _peerConnection!.onIceCandidate = (candidate) {
           if (_isWebSocketConnected && _channel != null) {
-            _channel!.sink.add(jsonEncode({
-              'type': 'candidate',
-              'candidate': candidate.toMap(),
-            }));
+            _channel!.sink.add(
+              jsonEncode({'type': 'candidate', 'candidate': candidate.toMap()}),
+            );
           }
         };
       }
-      
+
       RTCSessionDescription offer = RTCSessionDescription(data['sdp'], 'offer');
       await _peerConnection!.setRemoteDescription(offer);
-      
+      for (final candidate in _pendingCandidates) {
+        await _peerConnection!.addCandidate(candidate);
+      }
+      _pendingCandidates.clear();
+
       RTCSessionDescription answer = await _peerConnection!.createAnswer();
       await _peerConnection!.setLocalDescription(answer);
-      
+
       if (_isWebSocketConnected && _channel != null) {
-        _channel!.sink.add(jsonEncode({
-          'type': 'answer',
-          'sdp': answer.sdp,
-        }));
+        _channel!.sink.add(jsonEncode({'type': 'answer', 'sdp': answer.sdp}));
       }
-      
-      // Mark call as answered in database
-      await _callService.answerCall(widget.callId);
-      
     } catch (e) {
       print('Error handling offer: $e');
     }
@@ -283,12 +326,15 @@ class _CallScreenState extends State<CallScreen> {
 
   Future<void> _handleAnswer(Map<String, dynamic> data) async {
     try {
-      RTCSessionDescription answer = RTCSessionDescription(data['sdp'], 'answer');
+      RTCSessionDescription answer = RTCSessionDescription(
+        data['sdp'],
+        'answer',
+      );
       await _peerConnection!.setRemoteDescription(answer);
-      
-      // Mark call as answered in database
-      await _callService.answerCall(widget.callId);
-      
+      for (final candidate in _pendingCandidates) {
+        await _peerConnection!.addCandidate(candidate);
+      }
+      _pendingCandidates.clear();
     } catch (e) {
       print('Error handling answer: $e');
     }
@@ -302,7 +348,12 @@ class _CallScreenState extends State<CallScreen> {
         candidateMap['sdpMid'],
         candidateMap['sdpMLineIndex'],
       );
-      await _peerConnection!.addCandidate(candidate);
+      final remoteDescription = await _peerConnection?.getRemoteDescription();
+      if (_peerConnection == null || remoteDescription == null) {
+        _pendingCandidates.add(candidate);
+      } else {
+        await _peerConnection!.addCandidate(candidate);
+      }
     } catch (e) {
       print('Error adding ICE candidate: $e');
     }
@@ -321,18 +372,26 @@ class _CallScreenState extends State<CallScreen> {
   }
 
   Future<void> _toggleSpeaker() async {
-    await Helper.setSpeakerphoneOn(_isSpeakerOn);
-    setState(() {
-      _isSpeakerOn = !_isSpeakerOn;
-    });
+    final nextState = !_isSpeakerOn;
+    try {
+      await Helper.setSpeakerphoneOn(nextState);
+      if (mounted) setState(() => _isSpeakerOn = nextState);
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Audio output could not be changed.')),
+        );
+      }
+    }
   }
 
   Future<void> _toggleCamera() async {
     if (_localStream != null) {
       final videoTracks = _localStream!.getVideoTracks();
       for (var track in videoTracks) {
-        track.enabled = !track.enabled;
+        track.enabled = !_isCameraEnabled;
       }
+      if (mounted) setState(() => _isCameraEnabled = !_isCameraEnabled);
     }
   }
 
@@ -345,19 +404,33 @@ class _CallScreenState extends State<CallScreen> {
     }
   }
 
-  void _endCall() async {
-    if (_callTimer != null && _callTimer!.isActive) {
-      final durationSeconds = _callDuration.inSeconds;
-      await _callService.endCall(widget.callId, durationSeconds);
+  Future<void> _endCall({bool updateBackend = true}) async {
+    if (_isEnding) return;
+    _isEnding = true;
+    if (updateBackend && _callTimer?.isActive == true) {
+      try {
+        await _callService.endCall(widget.callId, _callDuration.inSeconds);
+      } catch (_) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Call ended. The server could not update its call status.',
+              ),
+            ),
+          );
+        }
+      }
     }
-    _cleanup();
+    await _cleanup();
     if (mounted) {
       Navigator.pop(context);
     }
   }
 
-  void _cleanup() async {
+  Future<void> _cleanup() async {
     _callTimer?.cancel();
+    await _callStatusSubscription?.cancel();
     await _localStream?.dispose();
     await _remoteStream?.dispose();
     await _peerConnection?.close();
@@ -369,9 +442,6 @@ class _CallScreenState extends State<CallScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final themeProvider = Provider.of<ThemeProvider>(context);
-    final isDark = themeProvider.isDarkMode;
-
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
@@ -387,9 +457,7 @@ class _CallScreenState extends State<CallScreen> {
             )
           else
             Container(
-              decoration: BoxDecoration(
-                gradient: AppColors.primaryGradient,
-              ),
+              decoration: BoxDecoration(gradient: AppColors.primaryGradient),
               child: Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -418,7 +486,8 @@ class _CallScreenState extends State<CallScreen> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      _isConnected ? 'Connected' : 'Ringing...',
+                      _connectionError ??
+                          (_isConnected ? 'Connected' : 'Ringing...'),
                       style: const TextStyle(
                         fontSize: 16,
                         color: Colors.white70,
@@ -437,10 +506,56 @@ class _CallScreenState extends State<CallScreen> {
               ),
             ),
 
-          // Local video preview (picture-in-picture)
-          if (widget.isVideoCall && _localStream != null && _localRenderer != null)
+          if (_remoteStream != null)
             Positioned(
-              top: 60,
+              top: MediaQuery.paddingOf(context).top + 14,
+              left: 16,
+              right: widget.isVideoCall ? 154 : 16,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 11,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: .42),
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: .16),
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      widget.contactName,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      _connectionError ??
+                          (_isConnected
+                              ? 'Connected · ${_formatDuration(_callDuration)}'
+                              : 'Connecting…'),
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+          // Local video preview (picture-in-picture)
+          if (widget.isVideoCall &&
+              _localStream != null &&
+              _localRenderer != null)
+            Positioned(
+              top: MediaQuery.paddingOf(context).top + 12,
               right: 16,
               child: Container(
                 width: 120,
@@ -462,7 +577,7 @@ class _CallScreenState extends State<CallScreen> {
 
           // Call controls
           Positioned(
-            bottom: 40,
+            bottom: 22 + MediaQuery.paddingOf(context).bottom,
             left: 0,
             right: 0,
             child: Container(
@@ -473,38 +588,51 @@ class _CallScreenState extends State<CallScreen> {
                   // Mute button
                   _buildControlButton(
                     icon: _isMuted ? Icons.mic_off : Icons.mic,
+                    tooltip: _isMuted
+                        ? 'Turn microphone on'
+                        : 'Mute microphone',
                     onPressed: _toggleMute,
                     color: _isMuted ? AppColors.error : Colors.white70,
                   ),
-                  
+
                   // Speaker button (audio call only)
                   if (!widget.isVideoCall)
                     _buildControlButton(
                       icon: _isSpeakerOn ? Icons.volume_up : Icons.volume_off,
+                      tooltip: _isSpeakerOn
+                          ? 'Turn speaker off'
+                          : 'Turn speaker on',
                       onPressed: _toggleSpeaker,
                       color: Colors.white70,
                     ),
-                  
+
                   // End call button
                   _buildControlButton(
                     icon: Icons.call_end,
+                    tooltip: 'End call',
                     onPressed: _endCall,
                     color: AppColors.error,
                     isSpecial: true,
                   ),
-                  
+
                   // Camera toggle (video call only)
                   if (widget.isVideoCall)
                     _buildControlButton(
                       icon: Icons.cameraswitch,
+                      tooltip: 'Switch camera',
                       onPressed: _switchCamera,
                       color: Colors.white70,
                     ),
-                  
+
                   // Video toggle (video call only)
                   if (widget.isVideoCall)
                     _buildControlButton(
-                      icon: Icons.videocam,
+                      icon: _isCameraEnabled
+                          ? Icons.videocam
+                          : Icons.videocam_off,
+                      tooltip: _isCameraEnabled
+                          ? 'Turn camera off'
+                          : 'Turn camera on',
                       onPressed: _toggleCamera,
                       color: Colors.white70,
                     ),
@@ -519,30 +647,34 @@ class _CallScreenState extends State<CallScreen> {
 
   Widget _buildControlButton({
     required IconData icon,
+    required String tooltip,
     required VoidCallback onPressed,
     required Color color,
     bool isSpecial = false,
   }) {
-    return GestureDetector(
-      onTap: onPressed,
-      child: Container(
-        width: 60,
-        height: 60,
-        decoration: BoxDecoration(
-          color: isSpecial ? color : Colors.white24,
-          shape: BoxShape.circle,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.3),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
+    return Semantics(
+      button: true,
+      label: tooltip,
+      child: Material(
+        color: isSpecial ? color : Colors.white.withValues(alpha: .18),
+        shape: const CircleBorder(),
+        elevation: 5,
+        shadowColor: Colors.black.withValues(alpha: .35),
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: onPressed,
+          child: SizedBox(
+            width: 62,
+            height: 62,
+            child: Tooltip(
+              message: tooltip,
+              child: Icon(
+                icon,
+                color: isSpecial ? Colors.white : color,
+                size: 27,
+              ),
             ),
-          ],
-        ),
-        child: Icon(
-          icon,
-          color: isSpecial ? Colors.white : color,
-          size: 28,
+          ),
         ),
       ),
     );
