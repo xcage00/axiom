@@ -18,6 +18,7 @@ class _SearchUsersScreenState extends State<SearchUsersScreen> {
   List<Map<String, dynamic>> _pendingRequests = [];
   bool _isLoading = false;
   String _searchQuery = '';
+  String? _searchError;
 
   @override
   void initState() {
@@ -25,99 +26,139 @@ class _SearchUsersScreenState extends State<SearchUsersScreen> {
     _loadExistingData();
   }
 
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
   Future<void> _loadExistingData() async {
     final currentUser = Supabase.instance.client.auth.currentUser;
     if (currentUser == null) return;
-    
-    // Load accepted friends
-    final friendsResponse = await Supabase.instance.client
-        .from('friend_requests')
-        .select('sender_id, receiver_id')
-        .or('sender_id.eq.${currentUser.id},receiver_id.eq.${currentUser.id}')
-        .eq('status', 'accepted');
-    
-    // Load pending requests
-    final pendingResponse = await Supabase.instance.client
-        .from('friend_requests')
-        .select('sender_id, receiver_id, status')
-        .or('sender_id.eq.${currentUser.id},receiver_id.eq.${currentUser.id}')
-        .neq('status', 'accepted');
-    
-    setState(() {
-      _existingFriends = List<Map<String, dynamic>>.from(friendsResponse);
-      _pendingRequests = List<Map<String, dynamic>>.from(pendingResponse);
-    });
+    try {
+      // Load accepted friends
+      final friendsResponse = await Supabase.instance.client
+          .from('friend_requests')
+          .select('sender_id, receiver_id')
+          .or('sender_id.eq.${currentUser.id},receiver_id.eq.${currentUser.id}')
+          .eq('status', 'accepted');
+
+      // Load pending requests
+      final pendingResponse = await Supabase.instance.client
+          .from('friend_requests')
+          .select('sender_id, receiver_id, status')
+          .or('sender_id.eq.${currentUser.id},receiver_id.eq.${currentUser.id}')
+          .neq('status', 'accepted');
+
+      if (mounted) {
+        setState(() {
+          _existingFriends = List<Map<String, dynamic>>.from(friendsResponse);
+          _pendingRequests = List<Map<String, dynamic>>.from(pendingResponse);
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(
+          () => _searchError = 'Friend request status could not be refreshed.',
+        );
+      }
+    }
   }
 
   bool _isAlreadyFriend(String userId) {
     final currentUser = Supabase.instance.client.auth.currentUser;
-    return _existingFriends.any((req) =>
-        (req['sender_id'] == currentUser?.id && req['receiver_id'] == userId) ||
-        (req['sender_id'] == userId && req['receiver_id'] == currentUser?.id));
+    return _existingFriends.any(
+      (req) =>
+          (req['sender_id'] == currentUser?.id &&
+              req['receiver_id'] == userId) ||
+          (req['sender_id'] == userId && req['receiver_id'] == currentUser?.id),
+    );
   }
 
   String _getRequestStatus(String userId) {
     final currentUser = Supabase.instance.client.auth.currentUser;
-    
+
     // Check if current user sent a request
-    final sentRequest = _pendingRequests.any((req) =>
-        req['sender_id'] == currentUser?.id && 
-        req['receiver_id'] == userId);
-    
+    final sentRequest = _pendingRequests.any(
+      (req) =>
+          req['sender_id'] == currentUser?.id && req['receiver_id'] == userId,
+    );
+
     if (sentRequest) return 'sent';
-    
+
     // Check if received a request
-    final receivedRequest = _pendingRequests.any((req) =>
-        req['sender_id'] == userId && 
-        req['receiver_id'] == currentUser?.id &&
-        req['status'] == 'pending');
-    
+    final receivedRequest = _pendingRequests.any(
+      (req) =>
+          req['sender_id'] == userId &&
+          req['receiver_id'] == currentUser?.id &&
+          req['status'] == 'pending',
+    );
+
     if (receivedRequest) return 'received';
-    
+
     return 'none';
   }
 
   Future<void> _searchUsers() async {
-    if (_searchQuery.trim().isEmpty) return;
-    
+    if (_searchQuery.trim().isEmpty) {
+      setState(() => _results = []);
+      return;
+    }
+
     setState(() => _isLoading = true);
-    
+
     final currentUser = Supabase.instance.client.auth.currentUser;
-    if (currentUser == null) return;
-    
-    final response = await Supabase.instance.client
-        .from('users')
-        .select()
-        .neq('id', currentUser.id)
-        .ilike('full_name', '%${_searchQuery.trim()}%');
-    
-    setState(() {
-      _results = List<Map<String, dynamic>>.from(response);
-      _isLoading = false;
-    });
+    if (currentUser == null) {
+      if (mounted) setState(() => _isLoading = false);
+      return;
+    }
+    try {
+      final response = await Supabase.instance.client
+          .from('users')
+          .select()
+          .neq('id', currentUser.id)
+          .ilike('full_name', '%${_searchQuery.trim()}%');
+
+      if (mounted) {
+        setState(() {
+          _results = List<Map<String, dynamic>>.from(response);
+          _searchError = null;
+          _isLoading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _searchError =
+              'Search is unavailable right now. Check your connection and try again.';
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   Future<void> _sendFriendRequest(String receiverId) async {
     try {
       final currentUser = Supabase.instance.client.auth.currentUser;
       if (currentUser == null) return;
-      
+
       await Supabase.instance.client.from('friend_requests').insert({
         'sender_id': currentUser.id,
         'receiver_id': receiverId,
         'status': 'pending',
       });
-      
+
       await _loadExistingData();
-      
+      if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Friend request sent!'),
           backgroundColor: AppColors.primary,
         ),
       );
-      
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error: ${e.toString()}'),
@@ -131,22 +172,23 @@ class _SearchUsersScreenState extends State<SearchUsersScreen> {
     try {
       final currentUser = Supabase.instance.client.auth.currentUser;
       if (currentUser == null) return;
-      
+
       await Supabase.instance.client
           .from('friend_requests')
           .update({'status': 'accepted'})
           .match({'sender_id': senderId, 'receiver_id': currentUser.id});
-      
+
       await _loadExistingData();
-      
+      if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Friend request accepted!'),
           backgroundColor: AppColors.primary,
         ),
       );
-      
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error: ${e.toString()}'),
@@ -158,13 +200,33 @@ class _SearchUsersScreenState extends State<SearchUsersScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
     final themeProvider = Provider.of<ThemeProvider>(context);
     final isDark = themeProvider.isDarkMode;
-    
+
     return Scaffold(
-      backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
+      backgroundColor: isDark
+          ? AppColors.darkBackground
+          : AppColors.lightBackground,
       appBar: AppBar(
-        title: const Text('Add Friends'),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Find people',
+              style: theme.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            Text(
+              'Grow your Axiom circle',
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: colors.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
         backgroundColor: Colors.transparent,
         elevation: 0,
       ),
@@ -178,18 +240,21 @@ class _SearchUsersScreenState extends State<SearchUsersScreen> {
                   child: TextField(
                     controller: _searchController,
                     onChanged: (value) {
-                      _searchQuery = value;
+                      setState(() => _searchQuery = value);
                       if (value.isEmpty) {
                         setState(() => _results = []);
                       }
                     },
+                    onSubmitted: (_) => _searchUsers(),
                     style: TextStyle(
                       color: isDark ? AppColors.darkText : AppColors.lightText,
                     ),
                     decoration: InputDecoration(
                       hintText: 'Search by name...',
                       hintStyle: TextStyle(
-                        color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                        color: isDark
+                            ? AppColors.darkTextSecondary
+                            : AppColors.lightTextSecondary,
                       ),
                       prefixIcon: const Icon(Icons.search),
                       border: OutlineInputBorder(
@@ -204,7 +269,7 @@ class _SearchUsersScreenState extends State<SearchUsersScreen> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(18),
                     ),
                   ),
                   child: const Text('Search'),
@@ -212,80 +277,143 @@ class _SearchUsersScreenState extends State<SearchUsersScreen> {
               ],
             ),
           ),
-          
+
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
-                : _results.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.search,
-                              size: 64,
-                              color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              _searchQuery.isEmpty ? 'Search for users to add' : 'No users found',
-                              style: TextStyle(
-                                color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
-                              ),
-                            ),
-                          ],
-                        ),
-                      )
-                    : ListView.builder(
-                        itemCount: _results.length,
-                        itemBuilder: (context, index) {
-                          final user = _results[index];
-                          final isAlreadyFriend = _isAlreadyFriend(user['id']);
-                          final requestStatus = _getRequestStatus(user['id']);
-                          
-                          Widget actionButton;
-                          if (isAlreadyFriend) {
-                            actionButton = const Icon(Icons.check_circle, color: AppColors.primary);
-                          } else if (requestStatus == 'sent') {
-                            actionButton = const Chip(label: Text('Sent'), backgroundColor: Colors.orange);
-                          } else if (requestStatus == 'received') {
-                            actionButton = ElevatedButton(
-                              onPressed: () => _acceptRequest(user['id']),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.primary,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                              ),
-                              child: const Text('Accept'),
-                            );
-                          } else {
-                            actionButton = ElevatedButton(
-                              onPressed: () => _sendFriendRequest(user['id']),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.primary,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                              ),
-                              child: const Text('Add Friend'),
-                            );
-                          }
-                          
-                          return ListTile(
-                            leading: CircleAvatar(
-                              backgroundColor: AppColors.primary.withOpacity(0.2),
-                              child: Text(
-                                user['full_name'][0].toUpperCase(),
-                                style: const TextStyle(color: AppColors.primary),
-                              ),
-                            ),
-                            title: Text(user['full_name']),
-                            subtitle: Text('@${user['username']}'),
-                            trailing: actionButton,
-                          );
-                        },
+                : _searchError != null
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(28),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.cloud_off_rounded,
+                            size: 42,
+                            color: colors.onSurfaceVariant,
+                          ),
+                          const SizedBox(height: 12),
+                          Text(_searchError!, textAlign: TextAlign.center),
+                          const SizedBox(height: 16),
+                          FilledButton(
+                            onPressed: _searchUsers,
+                            child: const Text('Try again'),
+                          ),
+                        ],
                       ),
+                    ),
+                  )
+                : _results.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.person_search_rounded,
+                          size: 54,
+                          color: colors.primary,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          _searchQuery.isEmpty
+                              ? 'Search by name to find your people'
+                              : 'No people found',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: colors.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : ListView.builder(
+                    itemCount: _results.length,
+                    itemBuilder: (context, index) {
+                      final user = _results[index];
+                      final isAlreadyFriend = _isAlreadyFriend(user['id']);
+                      final requestStatus = _getRequestStatus(user['id']);
+
+                      Widget actionButton;
+                      if (isAlreadyFriend) {
+                        actionButton = const Icon(
+                          Icons.check_circle,
+                          color: AppColors.primary,
+                        );
+                      } else if (requestStatus == 'sent') {
+                        actionButton = const Chip(
+                          label: Text('Sent'),
+                          backgroundColor: Colors.orange,
+                        );
+                      } else if (requestStatus == 'received') {
+                        actionButton = ElevatedButton(
+                          onPressed: () => _acceptRequest(user['id']),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                          ),
+                          child: const Text('Accept'),
+                        );
+                      } else {
+                        actionButton = ElevatedButton(
+                          onPressed: () => _sendFriendRequest(user['id']),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                          ),
+                          child: const Text('Add Friend'),
+                        );
+                      }
+
+                      final userName =
+                          user['full_name'] as String? ?? 'Axiom member';
+                      final avatarUrl = user['avatar_url'] as String?;
+                      return Container(
+                        margin: const EdgeInsets.fromLTRB(16, 5, 16, 5),
+                        decoration: BoxDecoration(
+                          color: colors.surface,
+                          borderRadius: BorderRadius.circular(18),
+                          border: Border.all(
+                            color: colors.outline.withValues(alpha: .45),
+                          ),
+                        ),
+                        child: ListTile(
+                          leading: CircleAvatar(
+                            backgroundColor: colors.primary.withValues(
+                              alpha: .14,
+                            ),
+                            backgroundImage:
+                                avatarUrl == null || avatarUrl.isEmpty
+                                ? null
+                                : NetworkImage(avatarUrl),
+                            child: avatarUrl == null || avatarUrl.isEmpty
+                                ? Text(
+                                    userName.isEmpty
+                                        ? '?'
+                                        : userName.characters.first
+                                              .toUpperCase(),
+                                    style: TextStyle(
+                                      color: colors.primary,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  )
+                                : null,
+                          ),
+                          title: Text(
+                            userName,
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          subtitle: Text('@${user['username'] ?? ''}'),
+                          trailing: actionButton,
+                        ),
+                      );
+                    },
+                  ),
           ),
         ],
       ),

@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/theme/colors.dart';
-import '../../../core/theme/theme_provider.dart';
 import 'group_chat_screen.dart';
 import 'create_group_screen.dart';
 
@@ -16,6 +14,7 @@ class GroupsListScreen extends StatefulWidget {
 class _GroupsListScreenState extends State<GroupsListScreen> {
   List<Map<String, dynamic>> _groups = [];
   bool _isLoading = true;
+  String? _loadError;
   RealtimeChannel? _groupsChannel;
 
   @override
@@ -45,94 +44,137 @@ class _GroupsListScreenState extends State<GroupsListScreen> {
 
   Future<void> _loadGroups() async {
     final currentUser = Supabase.instance.client.auth.currentUser;
-    if (currentUser == null) return;
-
-    final memberGroups = await Supabase.instance.client
-        .from('group_members')
-        .select('group_id')
-        .eq('user_id', currentUser.id);
-
-    final List<String> groupIds = memberGroups.map((g) => g['group_id'] as String).toList();
-
-    if (groupIds.isEmpty) {
-      setState(() {
-        _groups = [];
-        _isLoading = false;
-      });
+    if (currentUser == null) {
+      if (mounted) setState(() => _isLoading = false);
       return;
     }
 
-    // Fix: Use 'filter' instead of 'in_'
-    final List<Map<String, dynamic>> groups = [];
-    for (var id in groupIds) {
-      final group = await Supabase.instance.client
-          .from('groups')
-          .select()
-          .eq('id', id)
-          .maybeSingle();
-      if (group != null) {
-        groups.add(group);
+    if (mounted) setState(() => _isLoading = true);
+    try {
+      final memberGroups = await Supabase.instance.client
+          .from('group_members')
+          .select('group_id')
+          .eq('user_id', currentUser.id);
+
+      final List<String> groupIds = memberGroups
+          .map((g) => g['group_id'] as String)
+          .toList();
+
+      if (groupIds.isEmpty) {
+        if (mounted) {
+          setState(() {
+            _groups = [];
+            _loadError = null;
+            _isLoading = false;
+          });
+        }
+        return;
+      }
+
+      // Fix: Use 'filter' instead of 'in_'
+      final List<Map<String, dynamic>> groups = [];
+      for (var id in groupIds) {
+        final group = await Supabase.instance.client
+            .from('groups')
+            .select()
+            .eq('id', id)
+            .maybeSingle();
+        if (group != null) {
+          groups.add(group);
+        }
+      }
+
+      // Sort by created_at
+      groups.sort((a, b) => b['created_at'].compareTo(a['created_at']));
+
+      // Get last message for each group
+      final List<Map<String, dynamic>> processedGroups = [];
+      for (var group in groups) {
+        final lastMessage = await Supabase.instance.client
+            .from('group_messages')
+            .select()
+            .eq('group_id', group['id'])
+            .order('created_at', ascending: false)
+            .limit(1);
+
+        processedGroups.add({
+          ...group,
+          'last_message': lastMessage.isNotEmpty
+              ? lastMessage.first['message']
+              : 'No messages yet',
+        });
+      }
+
+      if (mounted) {
+        setState(() {
+          _groups = processedGroups;
+          _loadError = null;
+          _isLoading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _loadError =
+              'Groups could not be loaded. Check your connection and try again.';
+          _isLoading = false;
+        });
       }
     }
-
-    // Sort by created_at
-    groups.sort((a, b) => b['created_at'].compareTo(a['created_at']));
-
-    // Get last message for each group
-    final List<Map<String, dynamic>> processedGroups = [];
-    for (var group in groups) {
-      final lastMessage = await Supabase.instance.client
-          .from('group_messages')
-          .select()
-          .eq('group_id', group['id'])
-          .order('created_at', ascending: false)
-          .limit(1);
-
-      processedGroups.add({
-        ...group,
-        'last_message': lastMessage.isNotEmpty ? lastMessage.first['message'] : 'No messages yet',
-      });
-    }
-
-    setState(() {
-      _groups = processedGroups;
-      _isLoading = false;
-    });
   }
 
   Future<void> _leaveGroup(String groupId) async {
     final currentUser = Supabase.instance.client.auth.currentUser;
-    await Supabase.instance.client
-        .from('group_members')
-        .delete()
-        .match({'group_id': groupId, 'user_id': currentUser!.id});
+    await Supabase.instance.client.from('group_members').delete().match({
+      'group_id': groupId,
+      'user_id': currentUser!.id,
+    });
 
     await _loadGroups();
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Left group'), backgroundColor: AppColors.accent),
+        const SnackBar(
+          content: Text('Left group'),
+          backgroundColor: AppColors.accent,
+        ),
       );
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final themeProvider = Provider.of<ThemeProvider>(context);
-    final isDark = themeProvider.isDarkMode;
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
 
     return Scaffold(
-      backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
       appBar: AppBar(
-        title: const Text('Groups'),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Groups',
+              style: theme.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            Text(
+              'Good conversations happen together',
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: colors.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.group_add),
+            tooltip: 'Create a group',
+            icon: const Icon(Icons.group_add_rounded),
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const CreateGroupScreen()),
+                MaterialPageRoute(
+                  builder: (context) => const CreateGroupScreen(),
+                ),
               ).then((_) => _loadGroups());
             },
           ),
@@ -140,94 +182,150 @@ class _GroupsListScreenState extends State<GroupsListScreen> {
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
+          : _loadError != null
+          ? Center(
+              child: Padding(
+                padding: const EdgeInsets.all(28),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.cloud_off_rounded, size: 42),
+                    const SizedBox(height: 12),
+                    Text(_loadError!, textAlign: TextAlign.center),
+                    const SizedBox(height: 16),
+                    FilledButton(
+                      onPressed: _loadGroups,
+                      child: const Text('Try again'),
+                    ),
+                  ],
+                ),
+              ),
+            )
           : _groups.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.group,
-                        size: 64,
-                        color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        'No groups yet',
-                        style: TextStyle(
-                          color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      ElevatedButton(
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (context) => const CreateGroupScreen()),
-                          ).then((_) => _loadGroups());
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.accent,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        ),
-                        child: const Text('Create Group'),
-                      ),
-                    ],
+          ? Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.diversity_3_rounded,
+                    size: 48,
+                    color: colors.primary,
                   ),
-                )
-              : ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: _groups.length,
-                  itemBuilder: (context, index) {
-                    final group = _groups[index];
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      decoration: BoxDecoration(
-                        color: isDark ? AppColors.darkSurface : Colors.white,
-                        borderRadius: BorderRadius.circular(16),
+                  const SizedBox(height: 18),
+                  Text(
+                    'Your people, together',
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 7),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 34),
+                    child: Text(
+                      'Create a group to bring a conversation to everyone.',
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: colors.onSurfaceVariant,
                       ),
-                      child: ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: AppColors.accent.withOpacity(0.2),
-                          child: Text(
-                            group['name'][0].toUpperCase(),
-                            style: const TextStyle(color: AppColors.accent),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  FilledButton.icon(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const CreateGroupScreen(),
+                        ),
+                      ).then((_) => _loadGroups());
+                    },
+                    icon: const Icon(Icons.add_rounded),
+                    label: const Text('Create a group'),
+                  ),
+                ],
+              ),
+            )
+          : RefreshIndicator(
+              onRefresh: _loadGroups,
+              child: ListView.separated(
+                padding: const EdgeInsets.fromLTRB(16, 18, 16, 96),
+                itemCount: _groups.length,
+                separatorBuilder: (_, _) => const SizedBox(height: 10),
+                itemBuilder: (context, index) {
+                  final group = _groups[index];
+                  final name = group['name'] as String? ?? 'Group';
+                  return Material(
+                    color: colors.surface,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                      side: BorderSide(
+                        color: colors.outline.withValues(alpha: .45),
+                      ),
+                    ),
+                    clipBehavior: Clip.antiAlias,
+                    child: ListTile(
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 15,
+                        vertical: 7,
+                      ),
+                      leading: CircleAvatar(
+                        radius: 27,
+                        backgroundColor: colors.primary.withValues(alpha: .14),
+                        child: Text(
+                          name.isEmpty
+                              ? '?'
+                              : name.characters.first.toUpperCase(),
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            color: colors.primary,
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
-                        title: Text(
-                          group['name'],
-                          style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      title: Text(
+                        name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
                         ),
-                        subtitle: Text(
-                          group['last_message'],
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        trailing: PopupMenuButton(
-                          icon: const Icon(Icons.more_vert),
-                          itemBuilder: (context) => [
-                            const PopupMenuItem(value: 'leave', child: Text('Leave Group')),
-                          ],
-                          onSelected: (value) {
-                            if (value == 'leave') {
-                              _leaveGroup(group['id']);
-                            }
-                          },
-                        ),
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => GroupChatScreen(
-                                groupId: group['id'],
-                                groupName: group['name'],
-                              ),
-                            ),
-                          );
+                      ),
+                      subtitle: Text(
+                        group['last_message'] as String? ?? 'No messages yet',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      trailing: PopupMenuButton<String>(
+                        tooltip: 'Group options',
+                        icon: const Icon(Icons.more_horiz_rounded),
+                        itemBuilder: (context) => const [
+                          PopupMenuItem(
+                            value: 'leave',
+                            child: Text('Leave group'),
+                          ),
+                        ],
+                        onSelected: (value) {
+                          if (value == 'leave') {
+                            _leaveGroup(group['id'] as String);
+                          }
                         },
                       ),
-                    );
-                  },
-                ),
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => GroupChatScreen(
+                              groupId: group['id'],
+                              groupName: name,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  );
+                },
+              ),
+            ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           Navigator.push(
@@ -235,8 +333,8 @@ class _GroupsListScreenState extends State<GroupsListScreen> {
             MaterialPageRoute(builder: (context) => const CreateGroupScreen()),
           ).then((_) => _loadGroups());
         },
-        backgroundColor: AppColors.accent,
-        child: const Icon(Icons.add),
+        tooltip: 'Create a group',
+        child: const Icon(Icons.add_rounded),
       ),
     );
   }
