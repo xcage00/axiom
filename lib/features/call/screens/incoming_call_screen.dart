@@ -119,6 +119,7 @@ class _IncomingCallScreenState extends State<IncomingCallScreen> {
   @override
   Widget build(BuildContext context) {
     final isVideo = widget.callData['call_type'] == 'video';
+    final callerName = _callerInfo?['full_name'] as String? ?? 'Caller';
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -168,7 +169,7 @@ class _IncomingCallScreenState extends State<IncomingCallScreen> {
 
                   // Caller name
                   Text(
-                    _callerInfo?['full_name'] ?? 'Unknown',
+                    callerName,
                     style: const TextStyle(
                       fontSize: 28,
                       fontWeight: FontWeight.bold,
@@ -176,6 +177,23 @@ class _IncomingCallScreenState extends State<IncomingCallScreen> {
                     ),
                   ),
                   const SizedBox(height: 8),
+
+                  if (_callerInfo == null && _error == null) ...[
+                    const SizedBox(height: 14),
+                    const SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white70,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    const Text(
+                      'Checking this call…',
+                      style: TextStyle(color: Colors.white70, fontSize: 13),
+                    ),
+                  ],
 
                   // Call type
                   Row(
@@ -199,7 +217,7 @@ class _IncomingCallScreenState extends State<IncomingCallScreen> {
                     ],
                   ),
 
-                  const SizedBox(height: 60),
+                  const SizedBox(height: 48),
 
                   if (_error != null) ...[
                     Padding(
@@ -213,62 +231,24 @@ class _IncomingCallScreenState extends State<IncomingCallScreen> {
                     const SizedBox(height: 20),
                   ],
 
-                  // Accept/Reject buttons
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
-                      // Reject button
-                      GestureDetector(
+                      _buildCallAction(
+                        label: 'Decline',
+                        icon: Icons.call_end_rounded,
+                        color: AppColors.error,
                         onTap: _callAuthorized && !_working
                             ? _rejectCall
                             : null,
-                        child: Container(
-                          width: 70,
-                          height: 70,
-                          decoration: BoxDecoration(
-                            color: AppColors.error,
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(
-                                color: AppColors.error.withOpacity(0.4),
-                                blurRadius: 20,
-                                offset: const Offset(0, 5),
-                              ),
-                            ],
-                          ),
-                          child: const Icon(
-                            Icons.call_end,
-                            size: 35,
-                            color: Colors.white,
-                          ),
-                        ),
                       ),
-
-                      // Accept button
-                      GestureDetector(
+                      _buildCallAction(
+                        label: 'Answer',
+                        icon: Icons.call_rounded,
+                        color: AppColors.success,
                         onTap: _callAuthorized && !_working
                             ? _acceptCall
                             : null,
-                        child: Container(
-                          width: 70,
-                          height: 70,
-                          decoration: BoxDecoration(
-                            color: AppColors.success,
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(
-                                color: AppColors.success.withOpacity(0.4),
-                                blurRadius: 20,
-                                offset: const Offset(0, 5),
-                              ),
-                            ],
-                          ),
-                          child: const Icon(
-                            Icons.call,
-                            size: 35,
-                            color: Colors.white,
-                          ),
-                        ),
                       ),
                     ],
                   ),
@@ -277,6 +257,58 @@ class _IncomingCallScreenState extends State<IncomingCallScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildCallAction({
+    required String label,
+    required IconData icon,
+    required Color color,
+    required VoidCallback? onTap,
+  }) {
+    return Semantics(
+      button: true,
+      enabled: onTap != null,
+      label: label,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Material(
+            color: color.withValues(alpha: onTap == null ? .55 : 1),
+            shape: const CircleBorder(),
+            elevation: 8,
+            shadowColor: color.withValues(alpha: .35),
+            child: InkWell(
+              customBorder: const CircleBorder(),
+              onTap: onTap,
+              child: SizedBox(
+                width: 70,
+                height: 70,
+                child: Center(
+                  child: _working
+                      ? const SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : Icon(icon, size: 30, color: Colors.white),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
       ),
     );
   }

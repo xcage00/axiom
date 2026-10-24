@@ -36,6 +36,7 @@ class _CallScreenState extends State<CallScreen> {
   bool _isConnected = false;
   bool _isMuted = false;
   bool _isSpeakerOn = true;
+  bool _isCameraEnabled = true;
   Timer? _callTimer;
   Duration _callDuration = Duration.zero;
   bool _isCallActive = false;
@@ -371,18 +372,26 @@ class _CallScreenState extends State<CallScreen> {
   }
 
   Future<void> _toggleSpeaker() async {
-    await Helper.setSpeakerphoneOn(_isSpeakerOn);
-    setState(() {
-      _isSpeakerOn = !_isSpeakerOn;
-    });
+    final nextState = !_isSpeakerOn;
+    try {
+      await Helper.setSpeakerphoneOn(nextState);
+      if (mounted) setState(() => _isSpeakerOn = nextState);
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Audio output could not be changed.')),
+        );
+      }
+    }
   }
 
   Future<void> _toggleCamera() async {
     if (_localStream != null) {
       final videoTracks = _localStream!.getVideoTracks();
       for (var track in videoTracks) {
-        track.enabled = !track.enabled;
+        track.enabled = !_isCameraEnabled;
       }
+      if (mounted) setState(() => _isCameraEnabled = !_isCameraEnabled);
     }
   }
 
@@ -497,12 +506,56 @@ class _CallScreenState extends State<CallScreen> {
               ),
             ),
 
+          if (_remoteStream != null)
+            Positioned(
+              top: MediaQuery.paddingOf(context).top + 14,
+              left: 16,
+              right: widget.isVideoCall ? 154 : 16,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 11,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: .42),
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: .16),
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      widget.contactName,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      _connectionError ??
+                          (_isConnected
+                              ? 'Connected · ${_formatDuration(_callDuration)}'
+                              : 'Connecting…'),
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
           // Local video preview (picture-in-picture)
           if (widget.isVideoCall &&
               _localStream != null &&
               _localRenderer != null)
             Positioned(
-              top: 60,
+              top: MediaQuery.paddingOf(context).top + 12,
               right: 16,
               child: Container(
                 width: 120,
@@ -524,7 +577,7 @@ class _CallScreenState extends State<CallScreen> {
 
           // Call controls
           Positioned(
-            bottom: 40,
+            bottom: 22 + MediaQuery.paddingOf(context).bottom,
             left: 0,
             right: 0,
             child: Container(
@@ -535,6 +588,9 @@ class _CallScreenState extends State<CallScreen> {
                   // Mute button
                   _buildControlButton(
                     icon: _isMuted ? Icons.mic_off : Icons.mic,
+                    tooltip: _isMuted
+                        ? 'Turn microphone on'
+                        : 'Mute microphone',
                     onPressed: _toggleMute,
                     color: _isMuted ? AppColors.error : Colors.white70,
                   ),
@@ -543,6 +599,9 @@ class _CallScreenState extends State<CallScreen> {
                   if (!widget.isVideoCall)
                     _buildControlButton(
                       icon: _isSpeakerOn ? Icons.volume_up : Icons.volume_off,
+                      tooltip: _isSpeakerOn
+                          ? 'Turn speaker off'
+                          : 'Turn speaker on',
                       onPressed: _toggleSpeaker,
                       color: Colors.white70,
                     ),
@@ -550,6 +609,7 @@ class _CallScreenState extends State<CallScreen> {
                   // End call button
                   _buildControlButton(
                     icon: Icons.call_end,
+                    tooltip: 'End call',
                     onPressed: _endCall,
                     color: AppColors.error,
                     isSpecial: true,
@@ -559,6 +619,7 @@ class _CallScreenState extends State<CallScreen> {
                   if (widget.isVideoCall)
                     _buildControlButton(
                       icon: Icons.cameraswitch,
+                      tooltip: 'Switch camera',
                       onPressed: _switchCamera,
                       color: Colors.white70,
                     ),
@@ -566,7 +627,12 @@ class _CallScreenState extends State<CallScreen> {
                   // Video toggle (video call only)
                   if (widget.isVideoCall)
                     _buildControlButton(
-                      icon: Icons.videocam,
+                      icon: _isCameraEnabled
+                          ? Icons.videocam
+                          : Icons.videocam_off,
+                      tooltip: _isCameraEnabled
+                          ? 'Turn camera off'
+                          : 'Turn camera on',
                       onPressed: _toggleCamera,
                       color: Colors.white70,
                     ),
@@ -581,27 +647,35 @@ class _CallScreenState extends State<CallScreen> {
 
   Widget _buildControlButton({
     required IconData icon,
+    required String tooltip,
     required VoidCallback onPressed,
     required Color color,
     bool isSpecial = false,
   }) {
-    return GestureDetector(
-      onTap: onPressed,
-      child: Container(
-        width: 60,
-        height: 60,
-        decoration: BoxDecoration(
-          color: isSpecial ? color : Colors.white24,
-          shape: BoxShape.circle,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.3),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
+    return Semantics(
+      button: true,
+      label: tooltip,
+      child: Material(
+        color: isSpecial ? color : Colors.white.withValues(alpha: .18),
+        shape: const CircleBorder(),
+        elevation: 5,
+        shadowColor: Colors.black.withValues(alpha: .35),
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: onPressed,
+          child: SizedBox(
+            width: 62,
+            height: 62,
+            child: Tooltip(
+              message: tooltip,
+              child: Icon(
+                icon,
+                color: isSpecial ? Colors.white : color,
+                size: 27,
+              ),
             ),
-          ],
+          ),
         ),
-        child: Icon(icon, color: isSpecial ? Colors.white : color, size: 28),
       ),
     );
   }
