@@ -99,6 +99,7 @@ class _SplashDecisionState extends State<SplashDecision> {
         Navigator.pushReplacementNamed(context, '/login');
       } else {
         await prefs.setBool('hasSeenOnboarding', true);
+        if (!mounted) return;
         Navigator.pushReplacementNamed(context, '/onboarding');
       }
     }
@@ -106,8 +107,9 @@ class _SplashDecisionState extends State<SplashDecision> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: theme.scaffoldBackgroundColor,
       body: Center(
         child: TweenAnimationBuilder(
           tween: Tween<double>(begin: 0.5, end: 1.0),
@@ -124,7 +126,7 @@ class _SplashDecisionState extends State<SplashDecision> {
                   borderRadius: BorderRadius.circular(24),
                   boxShadow: [
                     BoxShadow(
-                      color: AppColors.primary.withOpacity(0.5),
+                      color: theme.colorScheme.primary.withValues(alpha: 0.32),
                       blurRadius: 30,
                       offset: const Offset(0, 10),
                     ),
