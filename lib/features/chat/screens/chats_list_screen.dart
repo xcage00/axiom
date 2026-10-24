@@ -21,6 +21,7 @@ class _ChatsListScreenState extends State<ChatsListScreen> {
   bool _isLoading = true;
   String? _loadError;
   String _searchQuery = '';
+  bool _unreadOnly = false;
 
   @override
   void initState() {
@@ -116,7 +117,7 @@ class _ChatsListScreenState extends State<ChatsListScreen> {
       // Fetch related rows in batches to avoid two network round trips per chat.
       final userRows = await client
           .from('users')
-          .select('id, full_name, username, online_status')
+          .select('id, full_name, username, online_status, avatar_url')
           .inFilter('id', otherUserIds.toList());
       final messageRows = await client
           .from('messages')
@@ -192,6 +193,7 @@ class _ChatsListScreenState extends State<ChatsListScreen> {
           'last_message_time': lastMessageTime ?? '',
           'last_message_at': lastMessageAt,
           'online_status': user?['online_status'] == true,
+          'avatar_url': user?['avatar_url'] as String?,
           'unread_count': unreadCount,
         });
       }
@@ -238,10 +240,13 @@ class _ChatsListScreenState extends State<ChatsListScreen> {
 
   List<Map<String, dynamic>> get _visibleChats {
     final query = _searchQuery.trim().toLowerCase();
-    if (query.isEmpty) return _chats;
     return _chats.where((chat) {
-      return (chat['name'] as String).toLowerCase().contains(query) ||
+      final matchesQuery =
+          query.isEmpty ||
+          (chat['name'] as String).toLowerCase().contains(query) ||
           (chat['last_message'] as String).toLowerCase().contains(query);
+      final matchesUnread = !_unreadOnly || (chat['unread_count'] as int) > 0;
+      return matchesQuery && matchesUnread;
     }).toList();
   }
 
@@ -265,7 +270,21 @@ class _ChatsListScreenState extends State<ChatsListScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Messages', style: theme.textTheme.headlineSmall),
+                      Text(
+                        'YOUR SPACE',
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: colors.primary,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1.5,
+                        ),
+                      ),
+                      const SizedBox(height: 5),
+                      Text(
+                        'Your conversations',
+                        style: theme.textTheme.headlineSmall?.copyWith(
+                          letterSpacing: -0.6,
+                        ),
+                      ),
                       const SizedBox(height: 5),
                       Text(
                         _chats.isEmpty
@@ -296,6 +315,31 @@ class _ChatsListScreenState extends State<ChatsListScreen> {
                                 ),
                         ),
                       ),
+                      const SizedBox(height: 14),
+                      Wrap(
+                        spacing: 9,
+                        children: [
+                          ChoiceChip(
+                            label: const Text('All messages'),
+                            selected: !_unreadOnly,
+                            onSelected: (_) =>
+                                setState(() => _unreadOnly = false),
+                          ),
+                          ChoiceChip(
+                            avatar: Icon(
+                              Icons.mark_chat_unread_outlined,
+                              size: 17,
+                              color: _unreadOnly
+                                  ? colors.onPrimary
+                                  : colors.onSurfaceVariant,
+                            ),
+                            label: const Text('Unread'),
+                            selected: _unreadOnly,
+                            onSelected: (_) =>
+                                setState(() => _unreadOnly = true),
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 ),
@@ -320,6 +364,7 @@ class _ChatsListScreenState extends State<ChatsListScreen> {
                   hasScrollBody: false,
                   child: _EmptyState(
                     isSearching: _searchQuery.isNotEmpty,
+                    isUnreadFilter: _unreadOnly,
                     hasError: _loadError != null,
                   ),
                 )
@@ -347,6 +392,7 @@ class _ChatsListScreenState extends State<ChatsListScreen> {
     final name = chat['name'] as String;
     final unreadCount = chat['unread_count'] as int;
     final hasUnread = unreadCount > 0;
+    final avatarUrl = chat['avatar_url'] as String?;
 
     return Material(
       color: colors.surface,
@@ -354,8 +400,8 @@ class _ChatsListScreenState extends State<ChatsListScreen> {
         borderRadius: BorderRadius.circular(20),
         side: BorderSide(
           color: hasUnread
-              ? colors.primary.withValues(alpha: 0.65)
-              : colors.outline,
+              ? colors.primary.withValues(alpha: 0.32)
+              : colors.outline.withValues(alpha: 0.45),
         ),
       ),
       clipBehavior: Clip.antiAlias,
@@ -373,21 +419,26 @@ class _ChatsListScreenState extends State<ChatsListScreen> {
           if (mounted) await _loadChats();
         },
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+          padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 14),
           child: Row(
             children: [
               Stack(
                 children: [
                   CircleAvatar(
-                    radius: 27,
-                    backgroundColor: colors.primary.withValues(alpha: 0.15),
-                    child: Text(
-                      name.isEmpty ? '?' : name.characters.first.toUpperCase(),
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        color: colors.primary,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
+                    radius: 28,
+                    backgroundColor: colors.primary.withValues(alpha: 0.14),
+                    child: avatarUrl == null || avatarUrl.isEmpty
+                        ? _avatarInitial(name, theme, colors)
+                        : ClipOval(
+                            child: Image.network(
+                              avatarUrl,
+                              width: 56,
+                              height: 56,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) =>
+                                  _avatarInitial(name, theme, colors),
+                            ),
+                          ),
                   ),
                   if (chat['online_status'] == true)
                     Positioned(
@@ -491,12 +542,26 @@ class _ChatsListScreenState extends State<ChatsListScreen> {
       ),
     );
   }
+
+  Widget _avatarInitial(String name, ThemeData theme, ColorScheme colors) =>
+      Text(
+        name.isEmpty ? '?' : name.characters.first.toUpperCase(),
+        style: theme.textTheme.titleMedium?.copyWith(
+          color: colors.primary,
+          fontWeight: FontWeight.w700,
+        ),
+      );
 }
 
 class _EmptyState extends StatelessWidget {
-  const _EmptyState({required this.isSearching, required this.hasError});
+  const _EmptyState({
+    required this.isSearching,
+    required this.isUnreadFilter,
+    required this.hasError,
+  });
 
   final bool isSearching;
+  final bool isUnreadFilter;
   final bool hasError;
 
   @override
@@ -507,11 +572,15 @@ class _EmptyState extends StatelessWidget {
         ? 'Your chats are unavailable'
         : isSearching
         ? 'No matches found'
+        : isUnreadFilter
+        ? 'Nothing unread'
         : 'Start a conversation';
     final message = hasError
         ? 'Pull down to try again.'
         : isSearching
         ? 'Try a different name or message.'
+        : isUnreadFilter
+        ? 'You are all caught up.'
         : 'When you message someone, your conversations will appear here.';
 
     return Center(
@@ -523,6 +592,8 @@ class _EmptyState extends StatelessWidget {
             Icon(
               hasError
                   ? Icons.cloud_off_rounded
+                  : isUnreadFilter
+                  ? Icons.done_all_rounded
                   : Icons.chat_bubble_outline_rounded,
               size: 40,
               color: colors.onSurfaceVariant,

@@ -1,11 +1,10 @@
 import 'dart:async';
 import 'dart:io';
+import 'package:intl/intl.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../core/theme/colors.dart';
-import '../../../core/theme/theme_provider.dart';
 import '../../../data/services/call_service.dart';
 import '../../call/screens/call_screen.dart';
 
@@ -14,7 +13,7 @@ final ImagePicker _imagePicker = ImagePicker();
 class DeleteOptions extends StatelessWidget {
   final VoidCallback onDeleteForMe;
   final VoidCallback? onDeleteForEveryone;
-  
+
   const DeleteOptions({
     super.key,
     required this.onDeleteForMe,
@@ -24,7 +23,7 @@ class DeleteOptions extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -93,9 +92,24 @@ class DeleteOptions extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: color)),
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: color,
+                    ),
+                  ),
                   const SizedBox(height: 2),
-                  Text(subtitle, style: TextStyle(fontSize: 12, color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary)),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: isDark
+                          ? AppColors.darkTextSecondary
+                          : AppColors.lightTextSecondary,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -109,7 +123,7 @@ class DeleteOptions extends StatelessWidget {
 class ChatDetailScreen extends StatefulWidget {
   final String contactId;
   final String contactName;
-  
+
   const ChatDetailScreen({
     super.key,
     required this.contactId,
@@ -123,7 +137,7 @@ class ChatDetailScreen extends StatefulWidget {
 class _ChatDetailScreenState extends State<ChatDetailScreen> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
-  
+
   List<Map<String, dynamic>> _messages = [];
   bool _isLoading = true;
   bool _isSending = false;
@@ -154,7 +168,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
 
   void _setupTypingListener() {
     if (_chatId == null) return;
-    
+
     _typingChannel = Supabase.instance.client
         .channel('typing_${_chatId}')
         .onPostgresChanges(
@@ -166,12 +180,13 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
             final userId = newStatus['user_id'];
             final isTyping = newStatus['is_typing'] ?? false;
             final chatId = newStatus['chat_id'];
-            
+
             if (userId == widget.contactId && chatId == _chatId && mounted) {
               setState(() => _contactIsTyping = isTyping);
               if (isTyping) {
                 Future.delayed(const Duration(seconds: 2), () {
-                  if (mounted && _contactIsTyping) setState(() => _contactIsTyping = false);
+                  if (mounted && _contactIsTyping)
+                    setState(() => _contactIsTyping = false);
                 });
               }
             }
@@ -183,16 +198,14 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   Future<void> _updateTypingStatus(bool isTyping) async {
     final currentUser = Supabase.instance.client.auth.currentUser;
     if (currentUser == null || _chatId == null) return;
-    
+
     try {
-      await Supabase.instance.client
-          .from('typing_statuses')
-          .upsert({
-            'chat_id': _chatId,
-            'user_id': currentUser.id,
-            'is_typing': isTyping,
-            'updated_at': DateTime.now().toIso8601String(),
-          });
+      await Supabase.instance.client.from('typing_statuses').upsert({
+        'chat_id': _chatId,
+        'user_id': currentUser.id,
+        'is_typing': isTyping,
+        'updated_at': DateTime.now().toIso8601String(),
+      });
     } catch (e) {
       // Silent fail
     }
@@ -213,23 +226,27 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
 
   Future<void> _initChat() async {
     final currentUser = Supabase.instance.client.auth.currentUser;
-    
+
     await _getContactStatus();
-    
+
     final existingChats = await Supabase.instance.client
         .from('chats')
         .select()
-        .or('participant1.eq.${currentUser!.id},participant2.eq.${currentUser.id}');
-    
+        .or(
+          'participant1.eq.${currentUser!.id},participant2.eq.${currentUser.id}',
+        );
+
     Map<String, dynamic>? chat;
     for (var c in existingChats) {
-      if ((c['participant1'] == widget.contactId && c['participant2'] == currentUser.id) ||
-          (c['participant2'] == widget.contactId && c['participant1'] == currentUser.id)) {
+      if ((c['participant1'] == widget.contactId &&
+              c['participant2'] == currentUser.id) ||
+          (c['participant2'] == widget.contactId &&
+              c['participant1'] == currentUser.id)) {
         chat = c;
         break;
       }
     }
-    
+
     if (chat == null) {
       final newChat = await Supabase.instance.client
           .from('chats')
@@ -243,7 +260,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     } else {
       _chatId = chat['id'];
     }
-    
+
     await _loadMessages();
     _subscribeToMessages();
     _subscribeToContactStatus();
@@ -276,10 +293,12 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
           callback: (payload) async {
             final newMessage = payload.newRecord;
             if (mounted) {
-              setState(() => _messages.add(Map<String, dynamic>.from(newMessage)));
+              setState(
+                () => _messages.add(Map<String, dynamic>.from(newMessage)),
+              );
               _scrollToBottom();
             }
-            
+
             if (newMessage['sender_id'] == widget.contactId && mounted) {
               await _markAsRead(newMessage['id']);
             }
@@ -311,15 +330,15 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   Future<void> _markAsRead(String messageId) async {
     final currentUser = Supabase.instance.client.auth.currentUser;
     if (currentUser == null) return;
-    
+
     final message = _messages.firstWhere((m) => m['id'] == messageId);
     if (message['sender_id'] == currentUser.id) return;
-    
+
     await Supabase.instance.client
         .from('messages')
         .update({'read_at': DateTime.now().toIso8601String()})
         .eq('id', messageId);
-    
+
     setState(() {
       final index = _messages.indexWhere((m) => m['id'] == messageId);
       if (index != -1) {
@@ -343,13 +362,13 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   Future<void> _loadMessages() async {
     final currentUser = Supabase.instance.client.auth.currentUser;
     if (currentUser == null) return;
-    
+
     final messages = await Supabase.instance.client
         .from('messages')
         .select()
         .eq('chat_id', _chatId!)
         .order('created_at', ascending: true);
-    
+
     final List<Map<String, dynamic>> filteredMessages = [];
     for (var msg in messages) {
       final deletedFor = msg['deleted_for'] as List? ?? [];
@@ -357,9 +376,9 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
         filteredMessages.add(Map<String, dynamic>.from(msg));
       }
     }
-    
+
     setState(() => _messages = filteredMessages);
-    
+
     for (var msg in _messages) {
       if (msg['sender_id'] == widget.contactId && msg['read_at'] == null) {
         await _markAsRead(msg['id']);
@@ -369,9 +388,9 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
 
   Future<void> _sendMessage({String? text, String? imageUrl}) async {
     if ((text == null || text.isEmpty) && imageUrl == null) return;
-    
+
     final currentUser = Supabase.instance.client.auth.currentUser;
-    
+
     await Supabase.instance.client.from('messages').insert({
       'chat_id': _chatId,
       'sender_id': currentUser!.id,
@@ -380,37 +399,69 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
       'image_url': imageUrl,
       'is_read': false,
     });
-    
+
     _updateTypingStatus(false);
-    _messageController.clear();
+    if (mounted) _messageController.clear();
+  }
+
+  Future<void> _sendCurrentMessage() async {
+    final text = _messageController.text.trim();
+    if (text.isEmpty || _isSending) return;
+
+    setState(() => _isSending = true);
+    try {
+      await _sendMessage(text: text);
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text(
+              'Message not sent. Check your connection and try again.',
+            ),
+            behavior: SnackBarBehavior.floating,
+            action: SnackBarAction(
+              label: 'Retry',
+              onPressed: _sendCurrentMessage,
+            ),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSending = false);
+    }
   }
 
   Widget _buildStatusIcon(Map<String, dynamic> message, bool isMe) {
     if (!isMe) return const SizedBox.shrink();
-    
-    if (message['read_at'] != null) {
-      return const Icon(Icons.done_all, size: 12, color: AppColors.success);
-    } else if (message['created_at'] != null) {
-      return const Icon(Icons.done_all, size: 12, color: Colors.grey);
-    } else {
-      return const Icon(Icons.done, size: 12, color: Colors.grey);
-    }
+
+    final wasRead = message['read_at'] != null;
+    return Icon(
+      wasRead ? Icons.done_all_rounded : Icons.done_rounded,
+      size: 15,
+      color: wasRead ? AppColors.success : Colors.white70,
+      semanticLabel: wasRead ? 'Read' : 'Sent',
+    );
+  }
+
+  String _formatMessageTime(dynamic value) {
+    final timestamp = value is String ? DateTime.tryParse(value) : null;
+    return timestamp == null ? '' : DateFormat.jm().format(timestamp.toLocal());
   }
 
   Future<void> _addReaction(String messageId, String emoji) async {
     final currentUser = Supabase.instance.client.auth.currentUser;
     if (currentUser == null) return;
-    
+
     final messageIndex = _messages.indexWhere((m) => m['id'] == messageId);
     if (messageIndex == -1) return;
-    
+
     final message = _messages[messageIndex];
     Map<String, dynamic> reactions = {};
-    
+
     if (message['reactions'] != null && message['reactions'] is Map) {
       reactions = Map<String, dynamic>.from(message['reactions']);
     }
-    
+
     String? oldEmoji;
     for (var entry in reactions.entries) {
       if (entry.value.contains(currentUser.id)) {
@@ -418,7 +469,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
         break;
       }
     }
-    
+
     if (oldEmoji != null) {
       final users = List.from(reactions[oldEmoji]);
       users.remove(currentUser.id);
@@ -428,17 +479,17 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
         reactions[oldEmoji] = users;
       }
     }
-    
+
     if (oldEmoji != emoji) {
       List<dynamic> users = reactions[emoji] ?? [];
       users.add(currentUser.id);
       reactions[emoji] = users;
     }
-    
+
     setState(() {
       _messages[messageIndex]['reactions'] = reactions;
     });
-    
+
     try {
       await Supabase.instance.client
           .from('messages')
@@ -452,19 +503,19 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   Future<void> _deleteForMe(String messageId) async {
     final currentUser = Supabase.instance.client.auth.currentUser;
     if (currentUser == null) return;
-    
+
     final messageIndex = _messages.indexWhere((m) => m['id'] == messageId);
     if (messageIndex == -1) return;
-    
+
     setState(() {
       _messages.removeAt(messageIndex);
     });
-    
+
     try {
-      await Supabase.instance.client.rpc('add_deleted_for', params: {
-        'message_id': messageId,
-        'user_id': currentUser.id,
-      });
+      await Supabase.instance.client.rpc(
+        'add_deleted_for',
+        params: {'message_id': messageId, 'user_id': currentUser.id},
+      );
     } catch (e) {
       await _loadMessages();
     }
@@ -473,10 +524,10 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   Future<void> _deleteForEveryone(String messageId) async {
     final currentUser = Supabase.instance.client.auth.currentUser;
     if (currentUser == null) return;
-    
+
     final messageIndex = _messages.indexWhere((m) => m['id'] == messageId);
     if (messageIndex == -1) return;
-    
+
     final message = _messages[messageIndex];
     if (message['sender_id'] != currentUser.id) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -487,11 +538,11 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
       );
       return;
     }
-    
+
     setState(() {
       _messages.removeAt(messageIndex);
     });
-    
+
     try {
       await Supabase.instance.client
           .from('messages')
@@ -504,31 +555,45 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
 
   Future<void> _pickAndSendImage() async {
     try {
-      final pickedFile = await _imagePicker.pickImage(source: ImageSource.gallery);
+      final pickedFile = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+      );
       if (pickedFile == null) return;
-      
+
       setState(() => _isSending = true);
-      
+
       final currentUser = Supabase.instance.client.auth.currentUser;
       final file = File(pickedFile.path);
-      final fileName = '${DateTime.now().millisecondsSinceEpoch}_${currentUser!.id}.jpg';
-      
-      await Supabase.instance.client.storage.from('chat_images').upload(fileName, file);
-      final imageUrl = Supabase.instance.client.storage.from('chat_images').getPublicUrl(fileName);
+      final fileName =
+          '${DateTime.now().millisecondsSinceEpoch}_${currentUser!.id}.jpg';
+
+      await Supabase.instance.client.storage
+          .from('chat_images')
+          .upload(fileName, file);
+      final imageUrl = Supabase.instance.client.storage
+          .from('chat_images')
+          .getPublicUrl(fileName);
       await _sendMessage(imageUrl: imageUrl);
-      
+
       setState(() => _isSending = false);
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Image sent!'), backgroundColor: AppColors.primary, duration: Duration(seconds: 1)),
+          const SnackBar(
+            content: Text('Image sent!'),
+            backgroundColor: AppColors.primary,
+            duration: Duration(seconds: 1),
+          ),
         );
       }
     } catch (e) {
       setState(() => _isSending = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: ${e.toString()}'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text('Error: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
@@ -536,13 +601,13 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
 
   void _makeCall(bool isVideo) async {
     final callService = CallService();
-    
+
     try {
       final call = await callService.createCall(
         receiverId: widget.contactId,
         callType: isVideo ? 'video' : 'audio',
       );
-      
+
       if (mounted) {
         Navigator.push(
           context,
@@ -559,7 +624,10 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error starting call: $e'), backgroundColor: Colors.red),
+        SnackBar(
+          content: Text('Error starting call: $e'),
+          backgroundColor: Colors.red,
+        ),
       );
     }
   }
@@ -580,44 +648,105 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final themeProvider = Provider.of<ThemeProvider>(context);
-    final isDark = themeProvider.isDarkMode;
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
     final currentUserId = Supabase.instance.client.auth.currentUser?.id;
-    
+
     return Scaffold(
-      backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        toolbarHeight: 70,
+        title: Row(
           children: [
-            Text(widget.contactName, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-            const SizedBox(height: 2),
-            Row(
+            Stack(
               children: [
-                Container(width: 8, height: 8, decoration: BoxDecoration(shape: BoxShape.circle, color: _contactOnline ? AppColors.success : Colors.grey)),
-                const SizedBox(width: 4),
-                Text(_contactIsTyping ? 'Typing...' : (_contactOnline ? 'Online' : 'Offline'), style: TextStyle(fontSize: 11, color: _contactIsTyping ? AppColors.primary : (_contactOnline ? AppColors.success : Colors.grey))),
+                CircleAvatar(
+                  radius: 23,
+                  backgroundColor: colors.primary.withValues(alpha: .14),
+                  child: Text(
+                    widget.contactName.isEmpty
+                        ? '?'
+                        : widget.contactName.characters.first.toUpperCase(),
+                    style: TextStyle(
+                      color: colors.primary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                Positioned(
+                  right: 0,
+                  bottom: 0,
+                  child: Container(
+                    width: 12,
+                    height: 12,
+                    decoration: BoxDecoration(
+                      color: _contactOnline
+                          ? AppColors.success
+                          : colors.onSurfaceVariant,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: colors.surface, width: 2),
+                    ),
+                  ),
+                ),
               ],
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    widget.contactName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 180),
+                    child: Text(
+                      _contactIsTyping
+                          ? 'Typing…'
+                          : _contactOnline
+                          ? 'Online now'
+                          : 'Offline',
+                      key: ValueKey((_contactIsTyping, _contactOnline)),
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: _contactIsTyping || _contactOnline
+                            ? AppColors.secondary
+                            : colors.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
+        backgroundColor: theme.scaffoldBackgroundColor,
+        surfaceTintColor: Colors.transparent,
+        scrolledUnderElevation: 0,
         leading: IconButton(
+          tooltip: 'Back to conversations',
           onPressed: () => Navigator.pop(context),
-          icon: Icon(Icons.arrow_back, color: isDark ? AppColors.darkText : AppColors.lightText),
+          icon: const Icon(Icons.arrow_back_rounded),
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.call),
+            tooltip: 'Voice call',
+            icon: const Icon(Icons.call_rounded),
             onPressed: () => _makeCall(false),
-            color: AppColors.primary,
           ),
           IconButton(
-            icon: const Icon(Icons.videocam),
+            tooltip: 'Video call',
+            icon: const Icon(Icons.videocam_rounded),
             onPressed: () => _makeCall(true),
-            color: AppColors.primary,
           ),
+          const SizedBox(width: 4),
         ],
       ),
       body: _isLoading
@@ -630,11 +759,32 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(Icons.chat_bubble_outline, size: 64, color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
+                              Icon(
+                                Icons.chat_bubble_outline,
+                                size: 64,
+                                color: isDark
+                                    ? AppColors.darkTextSecondary
+                                    : AppColors.lightTextSecondary,
+                              ),
                               const SizedBox(height: 16),
-                              Text('No messages yet', style: TextStyle(color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary)),
+                              Text(
+                                'No messages yet',
+                                style: TextStyle(
+                                  color: isDark
+                                      ? AppColors.darkTextSecondary
+                                      : AppColors.lightTextSecondary,
+                                ),
+                              ),
                               const SizedBox(height: 8),
-                              Text('Send a message to start the conversation', style: TextStyle(fontSize: 12, color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary)),
+                              Text(
+                                'Send a message to start the conversation',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: isDark
+                                      ? AppColors.darkTextSecondary
+                                      : AppColors.lightTextSecondary,
+                                ),
+                              ),
                             ],
                           ),
                         )
@@ -645,23 +795,32 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                           itemBuilder: (context, index) {
                             final message = _messages[index];
                             final isMe = message['sender_id'] == currentUserId;
-                            final hasImage = message['image_url'] != null && message['image_url'].isNotEmpty;
-                            final hasText = message['message'] != null && message['message'].isNotEmpty;
-                            
+                            final hasImage =
+                                message['image_url'] != null &&
+                                message['image_url'].isNotEmpty;
+                            final hasText =
+                                message['message'] != null &&
+                                message['message'].isNotEmpty;
+
                             return GestureDetector(
                               onLongPress: () {
                                 showModalBottomSheet(
                                   context: context,
                                   shape: const RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                                    borderRadius: BorderRadius.vertical(
+                                      top: Radius.circular(20),
+                                    ),
                                   ),
                                   builder: (context) => Column(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
                                       Container(
-                                        padding: const EdgeInsets.symmetric(vertical: 12),
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: 12,
+                                        ),
                                         child: Row(
-                                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.spaceEvenly,
                                           children: [
                                             _buildReactionButton('❤️', () {
                                               Navigator.pop(context);
@@ -692,18 +851,32 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                                       ),
                                       const Divider(height: 1),
                                       ListTile(
-                                        leading: const Icon(Icons.delete_outline, color: Colors.red),
-                                        title: const Text('Delete', style: TextStyle(color: Colors.red)),
+                                        leading: const Icon(
+                                          Icons.delete_outline,
+                                          color: Colors.red,
+                                        ),
+                                        title: const Text(
+                                          'Delete',
+                                          style: TextStyle(color: Colors.red),
+                                        ),
                                         onTap: () {
                                           Navigator.pop(context);
                                           showModalBottomSheet(
                                             context: context,
                                             shape: const RoundedRectangleBorder(
-                                              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                                              borderRadius:
+                                                  BorderRadius.vertical(
+                                                    top: Radius.circular(20),
+                                                  ),
                                             ),
                                             builder: (context) => DeleteOptions(
-                                              onDeleteForMe: () => _deleteForMe(message['id']),
-                                              onDeleteForEveryone: isMe ? () => _deleteForEveryone(message['id']) : null,
+                                              onDeleteForMe: () =>
+                                                  _deleteForMe(message['id']),
+                                              onDeleteForEveryone: isMe
+                                                  ? () => _deleteForEveryone(
+                                                      message['id'],
+                                                    )
+                                                  : null,
                                             ),
                                           );
                                         },
@@ -713,57 +886,210 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                                 );
                               },
                               child: Align(
-                                alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
-                                child: Container(
-                                  margin: const EdgeInsets.only(bottom: 8),
-                                  padding: const EdgeInsets.all(8),
-                                  decoration: BoxDecoration(
-                                    color: isMe ? AppColors.primary : (isDark ? AppColors.darkSurface : Colors.white),
-                                    borderRadius: BorderRadius.circular(16),
+                                alignment: isMe
+                                    ? Alignment.centerRight
+                                    : Alignment.centerLeft,
+                                child: ConstrainedBox(
+                                  constraints: const BoxConstraints(
+                                    maxWidth: 440,
                                   ),
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.end,
-                                    children: [
-                                      if (hasImage)
-                                        ClipRRect(
-                                          borderRadius: BorderRadius.circular(12),
-                                          child: Image.network(
-                                            message['image_url'],
-                                            width: 200,
-                                            height: 200,
-                                            fit: BoxFit.cover,
-                                            loadingBuilder: (context, child, loadingProgress) {
-                                              if (loadingProgress == null) return child;
-                                              return Container(width: 200, height: 200, color: Colors.grey.withOpacity(0.3), child: const Center(child: CircularProgressIndicator()));
-                                            },
-                                            errorBuilder: (context, error, stackTrace) => Container(width: 200, height: 200, color: Colors.grey, child: const Icon(Icons.broken_image)),
+                                  child: Container(
+                                    margin: const EdgeInsets.only(bottom: 10),
+                                    padding: const EdgeInsets.fromLTRB(
+                                      12,
+                                      10,
+                                      12,
+                                      7,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: isMe ? null : colors.surface,
+                                      gradient: isMe
+                                          ? AppColors.primaryGradient
+                                          : null,
+                                      border: isMe
+                                          ? null
+                                          : Border.all(
+                                              color: colors.outline.withValues(
+                                                alpha: .5,
+                                              ),
+                                            ),
+                                      borderRadius: BorderRadius.only(
+                                        topLeft: const Radius.circular(20),
+                                        topRight: const Radius.circular(20),
+                                        bottomLeft: Radius.circular(
+                                          isMe ? 20 : 5,
+                                        ),
+                                        bottomRight: Radius.circular(
+                                          isMe ? 5 : 20,
+                                        ),
+                                      ),
+                                      boxShadow: isMe
+                                          ? [
+                                              BoxShadow(
+                                                color: colors.primary
+                                                    .withValues(alpha: .14),
+                                                blurRadius: 16,
+                                                offset: const Offset(0, 6),
+                                              ),
+                                            ]
+                                          : null,
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment: isMe
+                                          ? CrossAxisAlignment.end
+                                          : CrossAxisAlignment.start,
+                                      children: [
+                                        if (hasImage)
+                                          ClipRRect(
+                                            borderRadius: BorderRadius.circular(
+                                              14,
+                                            ),
+                                            child: Image.network(
+                                              message['image_url'],
+                                              width: 236,
+                                              height: 220,
+                                              fit: BoxFit.cover,
+                                              loadingBuilder:
+                                                  (
+                                                    context,
+                                                    child,
+                                                    loadingProgress,
+                                                  ) {
+                                                    if (loadingProgress == null)
+                                                      return child;
+                                                    return Container(
+                                                      width: 236,
+                                                      height: 220,
+                                                      color: colors
+                                                          .surfaceContainerHighest,
+                                                      child: const Center(
+                                                        child:
+                                                            CircularProgressIndicator(),
+                                                      ),
+                                                    );
+                                                  },
+                                              errorBuilder:
+                                                  (
+                                                    context,
+                                                    error,
+                                                    stackTrace,
+                                                  ) => Container(
+                                                    width: 236,
+                                                    height: 220,
+                                                    color: colors
+                                                        .surfaceContainerHighest,
+                                                    child: const Icon(
+                                                      Icons
+                                                          .broken_image_outlined,
+                                                    ),
+                                                  ),
+                                            ),
+                                          ),
+                                        if (hasText)
+                                          Padding(
+                                            padding: EdgeInsets.only(
+                                              top: hasImage ? 9 : 0,
+                                              left: 2,
+                                              right: 2,
+                                              bottom: 4,
+                                            ),
+                                            child: Text(
+                                              message['message'],
+                                              style: theme.textTheme.bodyLarge
+                                                  ?.copyWith(
+                                                    color: isMe
+                                                        ? Colors.white
+                                                        : colors.onSurface,
+                                                    height: 1.35,
+                                                  ),
+                                            ),
+                                          ),
+                                        if (message['reactions'] != null &&
+                                            (message['reactions'] as Map)
+                                                .isNotEmpty)
+                                          Padding(
+                                            padding: const EdgeInsets.only(
+                                              top: 4,
+                                            ),
+                                            child: Wrap(
+                                              spacing: 4,
+                                              children:
+                                                  (message['reactions']
+                                                          as Map<
+                                                            String,
+                                                            dynamic
+                                                          >)
+                                                      .entries
+                                                      .map((entry) {
+                                                        return Container(
+                                                          padding:
+                                                              const EdgeInsets.symmetric(
+                                                                horizontal: 6,
+                                                                vertical: 2,
+                                                              ),
+                                                          decoration: BoxDecoration(
+                                                            color: isMe
+                                                                ? Colors.white
+                                                                      .withValues(
+                                                                        alpha:
+                                                                            .18,
+                                                                      )
+                                                                : colors
+                                                                      .surfaceContainerHighest,
+                                                            borderRadius:
+                                                                BorderRadius.circular(
+                                                                  12,
+                                                                ),
+                                                          ),
+                                                          child: Text(
+                                                            '${entry.key} ${entry.value.length}',
+                                                            style: theme
+                                                                .textTheme
+                                                                .labelSmall
+                                                                ?.copyWith(
+                                                                  color: isMe
+                                                                      ? Colors
+                                                                            .white
+                                                                      : colors
+                                                                            .onSurface,
+                                                                ),
+                                                          ),
+                                                        );
+                                                      })
+                                                      .toList(),
+                                            ),
+                                          ),
+                                        Padding(
+                                          padding: const EdgeInsets.only(
+                                            top: 3,
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Text(
+                                                _formatMessageTime(
+                                                  message['created_at'],
+                                                ),
+                                                style: theme
+                                                    .textTheme
+                                                    .labelSmall
+                                                    ?.copyWith(
+                                                      color: isMe
+                                                          ? Colors.white70
+                                                          : colors
+                                                                .onSurfaceVariant,
+                                                      fontSize: 10,
+                                                    ),
+                                              ),
+                                              if (isMe) ...[
+                                                const SizedBox(width: 4),
+                                                _buildStatusIcon(message, isMe),
+                                              ],
+                                            ],
                                           ),
                                         ),
-                                      if (hasText)
-                                        Padding(
-                                          padding: EdgeInsets.only(top: hasImage ? 8 : 0, left: 8, right: 8, bottom: 4),
-                                          child: Text(message['message'], style: TextStyle(color: isMe ? Colors.white : (isDark ? AppColors.darkText : AppColors.lightText), fontSize: 14)),
-                                        ),
-                                      if (message['reactions'] != null && (message['reactions'] as Map).isNotEmpty)
-                                        Padding(
-                                          padding: const EdgeInsets.only(top: 4),
-                                          child: Wrap(
-                                            spacing: 4,
-                                            children: (message['reactions'] as Map<String, dynamic>).entries.map((entry) {
-                                              return Container(
-                                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                                decoration: BoxDecoration(color: Colors.grey.withOpacity(0.2), borderRadius: BorderRadius.circular(12)),
-                                                child: Text('${entry.key} ${entry.value.length}', style: const TextStyle(fontSize: 11)),
-                                              );
-                                            }).toList(),
-                                          ),
-                                        ),
-                                      if (isMe)
-                                        Padding(
-                                          padding: const EdgeInsets.only(top: 4),
-                                          child: _buildStatusIcon(message, isMe),
-                                        ),
-                                    ],
+                                      ],
+                                    ),
                                   ),
                                 ),
                               ),
@@ -771,52 +1097,87 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                           },
                         ),
                 ),
-                if (_isSending) const Padding(padding: EdgeInsets.all(8), child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)), SizedBox(width: 8), Text('Sending...')])),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  decoration: BoxDecoration(color: isDark ? AppColors.darkSurface : Colors.white, boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4, offset: const Offset(0, -2))]),
-                  child: Row(
-                    children: [
-                      GestureDetector(
-                        onTap: _isSending ? null : _pickAndSendImage,
-                        child: Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(color: isDark ? AppColors.darkBackground : const Color(0xFFF5F5F5), borderRadius: BorderRadius.circular(25)),
-                          child: Icon(Icons.image, color: _isSending ? Colors.grey : AppColors.primary, size: 24),
-                        ),
+                  padding: EdgeInsets.fromLTRB(
+                    12,
+                    10,
+                    12,
+                    10 + MediaQuery.paddingOf(context).bottom,
+                  ),
+                  decoration: BoxDecoration(
+                    color: colors.surface,
+                    border: Border(
+                      top: BorderSide(
+                        color: colors.outline.withValues(alpha: .55),
                       ),
-                      const SizedBox(width: 8),
+                    ),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      IconButton.filledTonal(
+                        tooltip: 'Attach an image',
+                        onPressed: _isSending ? null : _pickAndSendImage,
+                        icon: const Icon(Icons.add_photo_alternate_outlined),
+                      ),
+                      const SizedBox(width: 6),
                       Expanded(
                         child: Container(
+                          constraints: const BoxConstraints(
+                            minHeight: 48,
+                            maxHeight: 132,
+                          ),
+                          decoration: BoxDecoration(
+                            color: colors.surfaceContainerHighest.withValues(
+                              alpha: .62,
+                            ),
+                            borderRadius: BorderRadius.circular(25),
+                            border: Border.all(
+                              color: colors.outline.withValues(alpha: .5),
+                            ),
+                          ),
                           padding: const EdgeInsets.symmetric(horizontal: 16),
-                          decoration: BoxDecoration(color: isDark ? AppColors.darkBackground : const Color(0xFFF5F5F5), borderRadius: BorderRadius.circular(25)),
                           child: TextField(
                             controller: _messageController,
                             enabled: !_isSending,
-                            onChanged: _onTextChanged,
-                            style: TextStyle(color: isDark ? AppColors.darkText : AppColors.lightText),
-                            decoration: InputDecoration(
-                              hintText: 'Message...',
-                              hintStyle: TextStyle(color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
-                              border: InputBorder.none,
-                              contentPadding: const EdgeInsets.symmetric(vertical: 12),
-                            ),
-                            onSubmitted: (_) {
-                              if (_messageController.text.trim().isNotEmpty && !_isSending) _sendMessage(text: _messageController.text.trim());
+                            minLines: 1,
+                            maxLines: 4,
+                            textCapitalization: TextCapitalization.sentences,
+                            onChanged: (value) {
+                              _onTextChanged(value);
+                              setState(() {});
                             },
+                            style: theme.textTheme.bodyLarge,
+                            decoration: InputDecoration(
+                              hintText: 'Write a message',
+                              hintStyle: theme.textTheme.bodyLarge?.copyWith(
+                                color: colors.onSurfaceVariant,
+                              ),
+                              border: InputBorder.none,
+                              contentPadding: const EdgeInsets.symmetric(
+                                vertical: 12,
+                              ),
+                            ),
+                            onSubmitted: (_) => _sendCurrentMessage(),
                           ),
                         ),
                       ),
                       const SizedBox(width: 8),
-                      GestureDetector(
-                        onTap: () {
-                          if (_messageController.text.trim().isNotEmpty && !_isSending) _sendMessage(text: _messageController.text.trim());
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: const BoxDecoration(color: AppColors.primary, shape: BoxShape.circle),
-                          child: const Icon(Icons.send, color: Colors.white, size: 20),
-                        ),
+                      IconButton.filled(
+                        tooltip: 'Send message',
+                        onPressed:
+                            _messageController.text.trim().isEmpty || _isSending
+                            ? null
+                            : _sendCurrentMessage,
+                        icon: _isSending
+                            ? const SizedBox(
+                                width: 19,
+                                height: 19,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Icon(Icons.arrow_upward_rounded),
                       ),
                     ],
                   ),

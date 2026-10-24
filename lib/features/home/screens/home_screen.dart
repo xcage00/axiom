@@ -21,7 +21,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
-  
+
   final List<Widget> _pages = [
     const ChatsListScreen(),
     const StoriesScreen(),
@@ -63,22 +63,69 @@ class _HomeScreenState extends State<HomeScreen> {
     final themeProvider = Provider.of<ThemeProvider>(context);
     final isDark = themeProvider.isDarkMode;
     final authService = AuthService();
-    
+
+    final colors = Theme.of(context).colorScheme;
+
     return Scaffold(
-      backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('Axiom'),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
+        toolbarHeight: 72,
+        titleSpacing: 20,
+        title: Row(
+          children: [
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                gradient: AppColors.primaryGradient,
+                borderRadius: BorderRadius.circular(15),
+                boxShadow: [
+                  BoxShadow(
+                    color: colors.primary.withValues(alpha: 0.28),
+                    blurRadius: 18,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
+              ),
+              child: const Icon(
+                Icons.chat_bubble_rounded,
+                color: Colors.white,
+                size: 21,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Axiom',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.4,
+                  ),
+                ),
+                Text(
+                  'A little closer, every day',
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: colors.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
         actions: [
           IconButton(
+            tooltip: isDark ? 'Switch to light theme' : 'Switch to dark theme',
             icon: Icon(
-              isDark ? Icons.light_mode : Icons.dark_mode,
+              isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
             ),
             onPressed: () => themeProvider.toggleTheme(),
           ),
           IconButton(
-            icon: const Icon(Icons.logout),
+            tooltip: 'Sign out',
+            icon: const Icon(Icons.logout_rounded),
             onPressed: () async {
               await authService.signOut();
               if (context.mounted) {
@@ -86,39 +133,67 @@ class _HomeScreenState extends State<HomeScreen> {
               }
             },
           ),
+          const SizedBox(width: 8),
         ],
       ),
-      body: _pages[_currentIndex],
-      bottomNavigationBar: Container(
-        margin: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: isDark ? AppColors.darkSurface : Colors.white,
-          borderRadius: BorderRadius.circular(30),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
+      body: IndexedStack(index: _currentIndex, children: _pages),
+      bottomNavigationBar: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: colors.surface,
+              borderRadius: BorderRadius.circular(25),
+              border: Border.all(color: colors.outline.withValues(alpha: .7)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: isDark ? .22 : .07),
+                  blurRadius: 26,
+                  offset: const Offset(0, 10),
+                ),
+              ],
             ),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(30),
-          child: BottomNavigationBar(
-            currentIndex: _currentIndex,
-            onTap: (index) => setState(() => _currentIndex = index),
-            type: BottomNavigationBarType.fixed,
-            backgroundColor: isDark ? AppColors.darkSurface : Colors.white,
-            elevation: 0,
-            selectedItemColor: AppColors.primary,
-            unselectedItemColor: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
-            items: const [
-              BottomNavigationBarItem(icon: Icon(Icons.chat_bubble_outline), label: 'Chats'),
-              BottomNavigationBarItem(icon: Icon(Icons.bookmark_outline), label: 'Stories'),
-              BottomNavigationBarItem(icon: Icon(Icons.group), label: 'Groups'),
-              BottomNavigationBarItem(icon: Icon(Icons.people_outline), label: 'Contacts'),
-              BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: 'Profile'),
-            ],
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(25),
+              child: NavigationBar(
+                height: 70,
+                selectedIndex: _currentIndex,
+                onDestinationSelected: (index) =>
+                    setState(() => _currentIndex = index),
+                backgroundColor: Colors.transparent,
+                indicatorColor: colors.primary.withValues(alpha: .14),
+                labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+                elevation: 0,
+                destinations: const [
+                  NavigationDestination(
+                    icon: Icon(Icons.chat_bubble_outline_rounded),
+                    selectedIcon: Icon(Icons.chat_bubble_rounded),
+                    label: 'Chats',
+                  ),
+                  NavigationDestination(
+                    icon: Icon(Icons.auto_awesome_outlined),
+                    selectedIcon: Icon(Icons.auto_awesome_rounded),
+                    label: 'Stories',
+                  ),
+                  NavigationDestination(
+                    icon: Icon(Icons.groups_outlined),
+                    selectedIcon: Icon(Icons.groups_rounded),
+                    label: 'Groups',
+                  ),
+                  NavigationDestination(
+                    icon: Icon(Icons.people_outline_rounded),
+                    selectedIcon: Icon(Icons.people_rounded),
+                    label: 'Contacts',
+                  ),
+                  NavigationDestination(
+                    icon: Icon(Icons.person_outline_rounded),
+                    selectedIcon: Icon(Icons.person_rounded),
+                    label: 'Profile',
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
       ),
